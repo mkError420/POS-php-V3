@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbars for inventory list and notification drawers */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* --- PRINT SYSTEM STYLES --- */
+#receipt-print-area, #history-print-area {
+  display: none;
+}
+
+@media print {
+  /* Hide standard web UI elements */
+  #root, 
+  header, 
+  nav, 
+  aside,
+  button, 
+  .fixed, 
+  .absolute, 
+  .modal-backdrop {
+    display: none !important;
+  }
+  
+  /* Show only the targeted print area */
+  body.print-mode-thermal #receipt-print-area,
+  body.print-mode-regular #receipt-print-area,
+  body.print-mode-history #history-print-area {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    height: auto !important;
+    background: white !important;
+    color: black !important;
+  }
+  
+  /* Hide the inactive style mode layout */
+  body.print-mode-thermal .regular-only {
+    display: none !important;
+  }
+  body.print-mode-regular .thermal-only {
+    display: none !important;
+  }
+  
+  /* Thermal mode layout (80mm width) */
+  body.print-mode-thermal {
+    width: 80mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+  
+  body.print-mode-thermal #receipt-print-area {
+    width: 80mm !important;
+    padding: 4mm !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+  
+  /* Regular mode layout (A4 width) */
+  body.print-mode-regular {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+  
+  body.print-mode-regular #receipt-print-area {
+    width: 100% !important;
+    max-width: 800px !important;
+    margin: 0 auto !important;
+    padding: 15mm !important;
+    font-family: system-ui, -apple-system, Helvetica, Arial, sans-serif !important;
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+  }
+
+  /* History report mode layout (A4 width) */
+  body.print-mode-history {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+  
+  body.print-mode-history #history-print-area {
+    width: 100% !important;
+    max-width: 800px !important;
+    margin: 0 auto !important;
+    padding: 15mm !important;
+    font-family: system-ui, -apple-system, Helvetica, Arial, sans-serif !important;
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+  }
+}
+
+
