@@ -347,6 +347,90 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
     }
   };
 
+  // Global Handheld Barcode Scanner Keyboard Wedge Interceptor
+  useEffect(() => {
+    let buffer = '';
+    let lastKeyTime = Date.now();
+    let keyTimes = [];
+
+    const handleGlobalKeydown = (e) => {
+      // Don't intercept if receipt or helper modals are open
+      if (receipt || showHeldBillsModal || showHoldBillModal) {
+        return;
+      }
+
+      const active = document.activeElement;
+      const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT');
+      const isBarcodeField = active === barcodeInputRef.current;
+
+      const currentTime = Date.now();
+      const diff = currentTime - lastKeyTime;
+      lastKeyTime = currentTime;
+
+      // Handle Enter (which signals the end of the scanned barcode)
+      if (e.key === 'Enter') {
+        const activeBarcode = isBarcodeField ? barcodeInputRef.current.value : buffer;
+        const isRapidScan = keyTimes.length > 1 && keyTimes.every(t => t < 45);
+        if (activeBarcode.length > 2 && (isBarcodeField || isRapidScan || !isInput)) {
+          e.preventDefault();
+          e.stopPropagation();
+
+          // If scanned inside another text field rapidly, slice off the first character that slipped in
+          if (isInput && !isBarcodeField && isRapidScan && buffer.length > 0) {
+            const firstChar = buffer[0];
+            const val = active.value;
+            if (val.endsWith(firstChar)) {
+              active.value = val.substring(0, val.length - 1);
+              const event = new Event('input', { bubbles: true });
+              active.dispatchEvent(event);
+            }
+          }
+
+          handleBarcodeScan(activeBarcode);
+          buffer = '';
+          keyTimes = [];
+          setBarcodeInput('');
+        } else {
+          buffer = '';
+          keyTimes = [];
+        }
+        return;
+      }
+
+      // Bypass non-character keys
+      if (e.key.length > 1) {
+        return;
+      }
+
+      // Track typing speed interval
+      keyTimes.push(diff);
+      if (keyTimes.length > 20) {
+        keyTimes.shift();
+      }
+
+      const isRapid = diff < 35;
+      if (isInput && !isBarcodeField && isRapid) {
+        e.preventDefault();
+        buffer += e.key;
+      } else if (isBarcodeField) {
+        // If focused in barcode field itself, let input display natively, but track buffer
+        buffer = barcodeInputRef.current.value + e.key;
+      } else if (!isInput) {
+        e.preventDefault();
+        buffer += e.key;
+      } else {
+        // Human typing slowly inside other inputs
+        buffer = '';
+        keyTimes = [];
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalKeydown, true);
+    return () => {
+      document.removeEventListener('keydown', handleGlobalKeydown, true);
+    };
+  }, [receipt, showHeldBillsModal, showHoldBillModal, barcodeInput, activeTabId, customers]);
+
   const handleBarcodeKeydown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();

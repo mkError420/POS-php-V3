@@ -83,6 +83,12 @@ export default function Suppliers() {
   const [profilePoDateTo, setProfilePoDateTo] = useState('');
   const [profilePoMonth, setProfilePoMonth] = useState('');         // 'YYYY-MM' format
 
+  // Pagination states
+  const [supplierPage, setSupplierPage] = useState(1);
+  const [poPage, setPoPage] = useState(1);
+  const [logsPage, setLogsPage] = useState(1);
+  const itemsPerPage = 10;
+
   // Load baseline directory data
   const fetchSuppliers = async () => {
     try {
@@ -305,7 +311,17 @@ export default function Suppliers() {
   };
 
   // OPEN PO CREATION MODAL
+  const [supplierSearch, setSupplierSearch] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  const [showSupplierSuggestions, setShowSupplierSuggestions] = useState(false);
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+
   const openAddPo = (supplierId = '') => {
+    const existingSupplier = suppliers.find(s => String(s.id) === String(supplierId));
+    setSupplierSearch(existingSupplier ? existingSupplier.name : '');
+    setProductSearch('');
+    setShowSupplierSuggestions(false);
+    setShowProductSuggestions(false);
     setPoFormData({
       supplier_id: supplierId,
       notes: '',
@@ -423,6 +439,8 @@ export default function Suppliers() {
 
       triggerAlert('success', `Purchase Order created successfully as ${poStatus}!`);
       setShowAddPoModal(false);
+      setSupplierSearch('');
+      setProductSearch('');
       fetchPurchaseOrders();
       fetchProducts(); // Refresh products cache
       if (selectedSupplierId) {
@@ -1515,260 +1533,409 @@ export default function Suppliers() {
       </div>
 
       {/* --- TAB: DIRECTORY --- */}
-      {activeTab === 'directory' && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
-                  <th className="p-4">Supplier Name</th>
-                  <th className="p-4">Contact Person</th>
-                  <th className="p-4">Email</th>
-                  <th className="p-4">Phone</th>
-                  <th className="p-4">Outstanding Due</th>
-                  <th className="p-4 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
-                {loading ? (
-                  <tr>
-                    <td colSpan="6" className="p-12 text-center">
-                      <div className="flex justify-center items-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
-                      </div>
-                    </td>
-                  </tr>
-                ) : suppliers.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="p-12 text-center text-slate-400">
-                      No suppliers listed yet. Add a supplier to begin.
-                    </td>
-                  </tr>
-                ) : (
-                  suppliers.map((supplier) => (
-                    <tr key={supplier.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="p-4 font-semibold text-slate-800">{supplier.name}</td>
-                      <td className="p-4 text-slate-700">{supplier.contact_name || '-'}</td>
-                      <td className="p-4 text-slate-600">{supplier.email || '-'}</td>
-                      <td className="p-4 text-slate-600">{supplier.phone || '-'}</td>
-                      <td className="p-4 font-bold text-slate-700">
-                        {parseFloat(supplier.due_balance) > 0 ? (
-                          <span className="text-rose-600 bg-rose-50 px-2 py-1 rounded-lg border border-rose-100 font-extrabold">
-                            {formatCurrency(supplier.due_balance)}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 font-semibold">-</span>
-                        )}
-                      </td>
-                      <td className="p-4 text-center space-x-2">
-                        <button
-                          onClick={() => setSelectedSupplierId(supplier.id)}
-                          className="text-indigo-600 hover:text-indigo-900 font-semibold text-xs border border-indigo-100 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-colors"
-                        >
-                          View Profile
-                        </button>
-                        <button
-                          onClick={() => openEdit(supplier)}
-                          className="text-slate-500 hover:text-slate-800 font-semibold text-xs border border-slate-200 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg transition-colors"
-                        >
-                          Edit
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {activeTab === 'directory' && (() => {
+        const totalSupplierPages = Math.ceil(suppliers.length / itemsPerPage);
+        const indexOfFirstSupplier = (supplierPage - 1) * itemsPerPage;
+        const indexOfLastSupplier = supplierPage * itemsPerPage;
+        const paginatedSuppliers = suppliers.slice(indexOfFirstSupplier, indexOfLastSupplier);
 
-      {/* --- TAB: PURCHASE ORDERS --- */}
-      {activeTab === 'pos' && (
-        <div className="space-y-4">
-          {/* PO Filters bar */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between shadow-xs">
-            <div className="flex items-center space-x-2.5">
-              <span className="text-xs font-bold text-slate-400 uppercase">Filter Status:</span>
-              <div className="flex space-x-1.5">
-                {['all', 'draft', 'ordered', 'received', 'cancelled'].map((st) => (
-                  <button
-                    key={st}
-                    onClick={() => setPoFilterStatus(st)}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg uppercase tracking-wider transition-all border ${
-                      poFilterStatus === st
-                        ? 'bg-slate-600 border-indigo-600 text-white'
-                        : 'bg-white border-slate-200 text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    {st}
-                  </button>
-                ))}
+        return (
+          <div className="space-y-4">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
+                      <th className="p-4">Supplier Name</th>
+                      <th className="p-4">Contact Person</th>
+                      <th className="p-4">Email</th>
+                      <th className="p-4">Phone</th>
+                      <th className="p-4">Outstanding Due</th>
+                      <th className="p-4 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {loading ? (
+                      <tr>
+                        <td colSpan="6" className="p-12 text-center">
+                          <div className="flex justify-center items-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : suppliers.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="p-12 text-center text-slate-400">
+                          No suppliers listed yet. Add a supplier to begin.
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedSuppliers.map((supplier) => (
+                        <tr key={supplier.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4 font-semibold text-slate-800">{supplier.name}</td>
+                          <td className="p-4 text-slate-700">{supplier.contact_name || '-'}</td>
+                          <td className="p-4 text-slate-600">{supplier.email || '-'}</td>
+                          <td className="p-4 text-slate-600">{supplier.phone || '-'}</td>
+                          <td className="p-4 font-bold text-slate-700">
+                            {parseFloat(supplier.due_balance) > 0 ? (
+                              <span className="text-rose-600 bg-rose-50 px-2 py-1 rounded-lg border border-rose-100 font-extrabold">
+                                {formatCurrency(supplier.due_balance)}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 font-semibold">-</span>
+                            )}
+                          </td>
+                          <td className="p-4 text-center space-x-2">
+                            <button
+                              onClick={() => setSelectedSupplierId(supplier.id)}
+                              className="text-indigo-600 hover:text-indigo-900 font-semibold text-xs border border-indigo-100 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                            >
+                              View Profile
+                            </button>
+                            <button
+                              onClick={() => openEdit(supplier)}
+                              className="text-slate-500 hover:text-slate-800 font-semibold text-xs border border-slate-200 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                            >
+                              Edit
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
-          </div>
 
-          {/* PO Table */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
-                    <th className="p-4">PO ID</th>
-                    <th className="p-4">Supplier</th>
-                    <th className="p-4">Order Date</th>
-                    <th className="p-4">Basis</th>
-                    <th className="p-4">Total</th>
-                    <th className="p-4">Paid</th>
-                    <th className="p-4">Due</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-sm">
-                  {loading ? (
-                    <tr>
-                      <td colSpan="9" className="p-12 text-center">
-                        <div className="flex justify-center items-center">
-                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
-                        </div>
-                      </td>
+            {/* Pagination Controls */}
+            {totalSupplierPages > 1 && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+                <div className="text-xs font-semibold text-slate-500">
+                  Showing <span className="text-slate-800">{indexOfFirstSupplier + 1}</span> to <span className="text-slate-800">{Math.min(indexOfLastSupplier, suppliers.length)}</span> of <span className="text-slate-800">{suppliers.length}</span> entries
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <button
+                    onClick={() => setSupplierPage(prev => Math.max(prev - 1, 1))}
+                    disabled={supplierPage === 1}
+                    className="px-3 py-2 bg-white hover:bg-slate-50 disabled:hover:bg-white disabled:opacity-50 text-slate-600 border border-slate-200 rounded-xl text-xs font-semibold transition-colors disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  
+                  {Array.from({ length: totalSupplierPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => setSupplierPage(page)}
+                      className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${
+                        supplierPage === page
+                          ? 'bg-slate-600 text-white shadow-xs'
+                          : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => setSupplierPage(prev => Math.min(prev + 1, totalSupplierPages))}
+                    disabled={supplierPage === totalSupplierPages}
+                    className="px-3 py-2 bg-white hover:bg-slate-50 disabled:hover:bg-white disabled:opacity-50 text-slate-600 border border-slate-200 rounded-xl text-xs font-semibold transition-colors disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* --- TAB: PURCHASE ORDERS --- */}
+      {activeTab === 'pos' && (() => {
+        const filteredPOs = getFilteredPOs(purchaseOrders);
+        const totalPoPages = Math.ceil(filteredPOs.length / itemsPerPage);
+        const indexOfFirstPo = (poPage - 1) * itemsPerPage;
+        const indexOfLastPo = poPage * itemsPerPage;
+        const paginatedPOs = filteredPOs.slice(indexOfFirstPo, indexOfLastPo);
+
+        return (
+          <div className="space-y-4">
+            {/* PO Filters bar */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between shadow-xs">
+              <div className="flex items-center space-x-2.5">
+                <span className="text-xs font-bold text-slate-400 uppercase">Filter Status:</span>
+                <div className="flex space-x-1.5">
+                  {['all', 'draft', 'ordered', 'received', 'cancelled'].map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => {
+                        setPoFilterStatus(st);
+                        setPoPage(1);
+                      }}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg uppercase tracking-wider transition-all border ${
+                        poFilterStatus === st
+                          ? 'bg-slate-600 border-indigo-600 text-white'
+                          : 'bg-white border-slate-200 text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* PO Table */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
+                      <th className="p-4">PO ID</th>
+                      <th className="p-4">Supplier</th>
+                      <th className="p-4">Order Date</th>
+                      <th className="p-4">Basis</th>
+                      <th className="p-4">Total</th>
+                      <th className="p-4">Paid</th>
+                      <th className="p-4">Due</th>
+                      <th className="p-4">Status</th>
+                      <th className="p-4 text-center">Actions</th>
                     </tr>
-                  ) : getFilteredPOs(purchaseOrders).length === 0 ? (
-                    <tr>
-                      <td colSpan="9" className="p-12 text-center text-slate-400">
-                        No purchase orders matching filters.
-                      </td>
-                    </tr>
-                  ) : (
-                    getFilteredPOs(purchaseOrders).map((po) => (
-                      <tr key={po.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="p-4 font-mono font-bold text-slate-650">#PO-{po.id}</td>
-                        <td className="p-4 font-semibold text-slate-800">{po.supplier_name}</td>
-                        <td className="p-4 text-slate-600">{formatDate(po.order_date).split(',')[0]}</td>
-                        <td className="p-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
-                            po.payment_basis === 'credit'
-                              ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          }`}>
-                            {po.payment_basis || 'cash'}
-                          </span>
-                        </td>
-                        <td className="p-4 font-bold text-slate-800">{formatCurrency(po.total_amount)}</td>
-                        <td className="p-4 text-emerald-600 font-semibold">{formatCurrency(po.paid_amount || 0)}</td>
-                        <td className="p-4 text-rose-650 font-bold">{formatCurrency(po.due_amount || 0)}</td>
-                        <td className="p-4">
-                          <span className={`px-2.5 py-0.5 rounded text-xs font-bold border ${getStatusBadge(po.status)}`}>
-                            {po.status}
-                          </span>
-                        </td>
-                        <td className="p-4 text-center space-x-2">
-                          <button
-                            onClick={() => openPoDetails(po.id)}
-                            className="text-indigo-600 hover:text-indigo-900 font-semibold text-xs border border-indigo-100 hover:bg-indigo-50 px-2.5 py-1 rounded-lg transition-colors"
-                          >
-                            Details
-                          </button>
-                          {po.status === 'ordered' && (
-                            <button
-                              onClick={() => openReceiveModal(po)}
-                              className="text-emerald-600 hover:text-emerald-900 font-bold text-xs border border-emerald-100 bg-emerald-50 px-2.5 py-1 rounded-lg transition-colors animate-pulse"
-                            >
-                              Receive Stocks
-                            </button>
-                          )}
-                          {po.status === 'draft' && (
-                            <button
-                              onClick={() => updatePoStatus(po.id, 'ordered')}
-                              className="text-amber-600 hover:text-amber-900 font-semibold text-xs border border-amber-100 hover:bg-amber-50 px-2.5 py-1 rounded-lg transition-colors mr-2"
-                            >
-                              Place Order
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDeletePo(po)}
-                            className="text-rose-600 hover:text-rose-900 font-semibold text-xs border border-rose-100 hover:bg-rose-50 px-2.5 py-1 rounded-lg transition-colors"
-                          >
-                            Delete
-                          </button>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {loading ? (
+                      <tr>
+                        <td colSpan="9" className="p-12 text-center">
+                          <div className="flex justify-center items-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
+                          </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : filteredPOs.length === 0 ? (
+                      <tr>
+                        <td colSpan="9" className="p-12 text-center text-slate-400">
+                          No purchase orders matching filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedPOs.map((po) => (
+                        <tr key={po.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4 font-mono font-bold text-slate-650">#PO-{po.id}</td>
+                          <td className="p-4 font-semibold text-slate-800">{po.supplier_name}</td>
+                          <td className="p-4 text-slate-600">{formatDate(po.order_date).split(',')[0]}</td>
+                          <td className="p-4">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                              po.payment_basis === 'credit'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            }`}>
+                              {po.payment_basis || 'cash'}
+                            </span>
+                          </td>
+                          <td className="p-4 font-bold text-slate-800">{formatCurrency(po.total_amount)}</td>
+                          <td className="p-4 text-emerald-600 font-semibold">{formatCurrency(po.paid_amount || 0)}</td>
+                          <td className="p-4 text-rose-650 font-bold">{formatCurrency(po.due_amount || 0)}</td>
+                          <td className="p-4">
+                            <span className={`px-2.5 py-0.5 rounded text-xs font-bold border ${getStatusBadge(po.status)}`}>
+                              {po.status}
+                            </span>
+                          </td>
+                          <td className="p-4 text-center space-x-2">
+                            <button
+                              onClick={() => openPoDetails(po.id)}
+                              className="text-indigo-600 hover:text-indigo-900 font-semibold text-xs border border-indigo-100 hover:bg-indigo-50 px-2.5 py-1 rounded-lg transition-colors"
+                            >
+                              Details
+                            </button>
+                            {po.status === 'ordered' && (
+                              <button
+                                onClick={() => openReceiveModal(po)}
+                                className="text-emerald-600 hover:text-emerald-900 font-bold text-xs border border-emerald-100 bg-emerald-50 px-2.5 py-1 rounded-lg transition-colors animate-pulse"
+                              >
+                                Receive Stocks
+                              </button>
+                            )}
+                            {po.status === 'draft' && (
+                              <button
+                                onClick={() => updatePoStatus(po.id, 'ordered')}
+                                className="text-amber-600 hover:text-amber-900 font-semibold text-xs border border-amber-100 hover:bg-amber-50 px-2.5 py-1 rounded-lg transition-colors mr-2"
+                              >
+                                Place Order
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeletePo(po)}
+                              className="text-rose-600 hover:text-rose-900 font-semibold text-xs border border-rose-100 hover:bg-rose-50 px-2.5 py-1 rounded-lg transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPoPages > 1 && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+                <div className="text-xs font-semibold text-slate-500">
+                  Showing <span className="text-slate-800">{indexOfFirstPo + 1}</span> to <span className="text-slate-800">{Math.min(indexOfLastPo, filteredPOs.length)}</span> of <span className="text-slate-800">{filteredPOs.length}</span> entries
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <button
+                    onClick={() => setPoPage(prev => Math.max(prev - 1, 1))}
+                    disabled={poPage === 1}
+                    className="px-3 py-2 bg-white hover:bg-slate-50 disabled:hover:bg-white disabled:opacity-50 text-slate-600 border border-slate-200 rounded-xl text-xs font-semibold transition-colors disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  
+                  {Array.from({ length: totalPoPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => setPoPage(page)}
+                      className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${
+                        poPage === page
+                          ? 'bg-slate-600 text-white shadow-xs'
+                          : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => setPoPage(prev => Math.min(prev + 1, totalPoPages))}
+                    disabled={poPage === totalPoPages}
+                    className="px-3 py-2 bg-white hover:bg-slate-50 disabled:hover:bg-white disabled:opacity-50 text-slate-600 border border-slate-200 rounded-xl text-xs font-semibold transition-colors disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* --- TAB: COST PRICE LOGS --- */}
-      {activeTab === 'logs' && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
-                  <th className="p-4">Date Logged</th>
-                  <th className="p-4">SKU</th>
-                  <th className="p-4">Product Name</th>
-                  <th className="p-4">Vendor Supplier</th>
-                  <th className="p-4">Old Cost</th>
-                  <th className="p-4">New Cost</th>
-                  <th className="p-4">Difference</th>
-                  <th className="p-4">Reason / Reference</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
-                {loading ? (
-                  <tr>
-                    <td colSpan="8" className="p-12 text-center">
-                      <div className="flex justify-center items-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
-                      </div>
-                    </td>
-                  </tr>
-                ) : costLogs.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" className="p-12 text-center text-slate-400">
-                      No cost price logs recorded yet. Logs generate automatically when POs are received.
-                    </td>
-                  </tr>
-                ) : (
-                  costLogs.map((log) => {
-                    const diff = parseFloat(log.new_cost_price) - parseFloat(log.old_cost_price);
-                    return (
-                      <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="p-4 text-slate-650">{formatDate(log.created_at)}</td>
-                        <td className="p-4 font-mono text-xs font-bold text-slate-500">{log.product_sku}</td>
-                        <td className="p-4 font-semibold text-slate-800">{log.product_name}</td>
-                        <td className="p-4 font-semibold text-slate-700">{log.supplier_name || 'N/A'}</td>
-                        <td className="p-4 text-slate-600">{formatCurrency(log.old_cost_price)}</td>
-                        <td className="p-4 font-extrabold text-slate-800">{formatCurrency(log.new_cost_price)}</td>
-                        <td className="p-4">
-                          {diff === 0 ? (
-                            <span className="text-slate-400 font-semibold">-</span>
-                          ) : diff > 0 ? (
-                            <span className="text-rose-600 font-bold bg-rose-50 border border-rose-100 px-2.5 py-0.5 rounded text-xs inline-flex items-center">
-                              +{formatCurrency(diff)} ▲
-                            </span>
-                          ) : (
-                            <span className="text-emerald-600 font-bold bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded text-xs inline-flex items-center">
-                              {formatCurrency(diff)} ▼
-                            </span>
-                          )}
+      {activeTab === 'logs' && (() => {
+        const totalLogPages = Math.ceil(costLogs.length / itemsPerPage);
+        const indexOfFirstLog = (logsPage - 1) * itemsPerPage;
+        const indexOfLastLog = logsPage * itemsPerPage;
+        const paginatedLogs = costLogs.slice(indexOfFirstLog, indexOfLastLog);
+
+        return (
+          <div className="space-y-4">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
+                      <th className="p-4">Date Logged</th>
+                      <th className="p-4">SKU</th>
+                      <th className="p-4">Product Name</th>
+                      <th className="p-4">Vendor Supplier</th>
+                      <th className="p-4">Old Cost</th>
+                      <th className="p-4">New Cost</th>
+                      <th className="p-4">Difference</th>
+                      <th className="p-4">Reason / Reference</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {loading ? (
+                      <tr>
+                        <td colSpan="8" className="p-12 text-center">
+                          <div className="flex justify-center items-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
+                          </div>
                         </td>
-                        <td className="p-4 font-medium text-indigo-600">{log.change_reason}</td>
                       </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                    ) : costLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan="8" className="p-12 text-center text-slate-400">
+                          No cost price logs recorded yet. Logs generate automatically when POs are received.
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedLogs.map((log) => {
+                        const diff = parseFloat(log.new_cost_price) - parseFloat(log.old_cost_price);
+                        return (
+                          <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="p-4 text-slate-650">{formatDate(log.created_at)}</td>
+                            <td className="p-4 font-mono text-xs font-bold text-slate-500">{log.product_sku}</td>
+                            <td className="p-4 font-semibold text-slate-800">{log.product_name}</td>
+                            <td className="p-4 font-semibold text-slate-700">{log.supplier_name || 'N/A'}</td>
+                            <td className="p-4 text-slate-600">{formatCurrency(log.old_cost_price)}</td>
+                            <td className="p-4 font-extrabold text-slate-800">{formatCurrency(log.new_cost_price)}</td>
+                            <td className="p-4">
+                              {diff === 0 ? (
+                                <span className="text-slate-400 font-semibold">-</span>
+                              ) : diff > 0 ? (
+                                <span className="text-rose-600 font-bold bg-rose-50 border border-rose-100 px-2.5 py-0.5 rounded text-xs inline-flex items-center">
+                                  +{formatCurrency(diff)} ▲
+                                </span>
+                              ) : (
+                                <span className="text-emerald-600 font-bold bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded text-xs inline-flex items-center">
+                                  {formatCurrency(diff)} ▼
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-4 font-medium text-indigo-600">{log.change_reason}</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Pagination Controls */}
+            {totalLogPages > 1 && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+                <div className="text-xs font-semibold text-slate-500">
+                  Showing <span className="text-slate-800">{indexOfFirstLog + 1}</span> to <span className="text-slate-800">{Math.min(indexOfLastLog, costLogs.length)}</span> of <span className="text-slate-800">{costLogs.length}</span> entries
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <button
+                    onClick={() => setLogsPage(prev => Math.max(prev - 1, 1))}
+                    disabled={logsPage === 1}
+                    className="px-3 py-2 bg-white hover:bg-slate-50 disabled:hover:bg-white disabled:opacity-50 text-slate-600 border border-slate-200 rounded-xl text-xs font-semibold transition-colors disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  
+                  {Array.from({ length: totalLogPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => setLogsPage(page)}
+                      className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${
+                        logsPage === page
+                          ? 'bg-slate-600 text-white shadow-xs'
+                          : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => setLogsPage(prev => Math.min(prev + 1, totalLogPages))}
+                    disabled={logsPage === totalLogPages}
+                    className="px-3 py-2 bg-white hover:bg-slate-50 disabled:hover:bg-white disabled:opacity-50 text-slate-600 border border-slate-200 rounded-xl text-xs font-semibold transition-colors disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* --- ADD SUPPLIER MODAL --- */}
       {showAddModal && renderSupplierFormModal(false)}
@@ -1901,34 +2068,122 @@ export default function Suppliers() {
           </div>
 
           <form className="mt-4 space-y-4">
-            <div>
+            <div className="relative">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Supplier *</label>
-              <select
-                value={poFormData.supplier_id}
-                onChange={(e) => setPoFormData({ ...poFormData, supplier_id: e.target.value })}
-                disabled={!!selectedSupplierId}
-                className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
-              >
-                <option value="">-- Select Supplier --</option>
-                {suppliers.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+              {selectedSupplierId ? (
+                <input
+                  type="text"
+                  value={supplierSearch}
+                  disabled
+                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm bg-slate-50 text-slate-500 font-medium"
+                />
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={supplierSearch}
+                    onChange={(e) => {
+                      setSupplierSearch(e.target.value);
+                      setShowSupplierSuggestions(true);
+                      if (poFormData.supplier_id) {
+                        setPoFormData(prev => ({ ...prev, supplier_id: '' }));
+                      }
+                    }}
+                    onFocus={() => setShowSupplierSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSupplierSuggestions(false), 200)}
+                    placeholder="Search supplier name..."
+                    className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-white font-medium"
+                  />
+                  
+                  {showSupplierSuggestions && (() => {
+                    const query = supplierSearch.toLowerCase();
+                    const suggestions = suppliers.filter(s =>
+                      s.name.toLowerCase().includes(query)
+                    );
+                    if (suggestions.length === 0 && supplierSearch.trim() !== '') {
+                      return (
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 p-3 text-center text-slate-400 text-xs">
+                          No matching suppliers found
+                        </div>
+                      );
+                    }
+                    if (suggestions.length === 0) return null;
+                    return (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto divide-y divide-slate-100">
+                        {suggestions.map(s => (
+                          <div
+                            key={s.id}
+                            onClick={() => {
+                              setSupplierSearch(s.name);
+                              setPoFormData(prev => ({ ...prev, supplier_id: String(s.id) }));
+                              setShowSupplierSuggestions(false);
+                            }}
+                            className="p-2 px-3 hover:bg-indigo-50 cursor-pointer text-left transition-colors"
+                          >
+                            <div className="text-xs font-semibold text-slate-800">{s.name}</div>
+                            {s.contact_name && <div className="text-[10px] text-slate-400">Contact: {s.contact_name}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
             </div>
 
-            <div>
+            <div className="relative">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Choose Product *</label>
-              <select
-                value={poFormData.is_new ? 'new_product' : poFormData.product_id}
-                onChange={(e) => handlePoProductChange(e.target.value)}
+              <input
+                type="text"
+                value={productSearch}
+                onChange={(e) => {
+                  setProductSearch(e.target.value);
+                  setShowProductSuggestions(true);
+                }}
+                onFocus={() => setShowProductSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowProductSuggestions(false), 200)}
+                placeholder="Search existing product (Name or SKU)..."
                 className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-white font-medium"
-              >
-                <option value="">-- Select Existing Product --</option>
-                <option value="new_product" className="text-indigo-600 font-bold">+ New Product (Create on-the-fly)</option>
-                {productsList.map(p => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
-                ))}
-              </select>
+              />
+
+              {showProductSuggestions && (() => {
+                const query = productSearch.toLowerCase();
+                const suggestions = productsList.filter(p =>
+                  p.name.toLowerCase().includes(query) || p.sku.toLowerCase().includes(query)
+                );
+
+                return (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto divide-y divide-slate-100">
+                    <div
+                      onClick={() => {
+                        setProductSearch('+ New Product (Create on-the-fly)');
+                        handlePoProductChange('new_product');
+                        setShowProductSuggestions(false);
+                      }}
+                      className="p-2.5 px-3 hover:bg-indigo-50 cursor-pointer text-left transition-colors text-indigo-650 font-bold text-xs"
+                    >
+                      + Create New Product On-The-Fly
+                    </div>
+                    {suggestions.map(p => (
+                      <div
+                        key={p.id}
+                        onClick={() => {
+                          setProductSearch(`${p.name} (${p.sku})`);
+                          handlePoProductChange(String(p.id));
+                          setShowProductSuggestions(false);
+                        }}
+                        className="p-2 px-3 hover:bg-indigo-50 cursor-pointer text-left transition-colors"
+                      >
+                        <div className="text-xs font-semibold text-slate-800">{p.name}</div>
+                        <div className="text-[10px] text-slate-400 flex justify-between">
+                          <span>SKU: {p.sku}</span>
+                          <span>Stock: {p.stock_quantity} left</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
             <div>
@@ -1940,7 +2195,7 @@ export default function Suppliers() {
                 disabled={!poFormData.is_new}
                 required
                 placeholder="Product Name"
-                className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-slate-50 disabled:bg-slate-50"
+                className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-slate-50 disabled:bg-slate-50 font-semibold"
               />
             </div>
 
@@ -1953,7 +2208,7 @@ export default function Suppliers() {
                 disabled={!poFormData.is_new}
                 required
                 placeholder="SKU Code"
-                className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-slate-50 disabled:bg-slate-50"
+                className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-slate-50 disabled:bg-slate-50 font-semibold font-mono"
               />
             </div>
 
@@ -1965,10 +2220,9 @@ export default function Suppliers() {
                   step="0.01"
                   value={poFormData.cost_price}
                   onChange={(e) => setPoFormData({ ...poFormData, cost_price: e.target.value })}
-                  disabled={!poFormData.is_new}
                   required
                   placeholder="0.00"
-                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-slate-50 disabled:bg-slate-50"
+                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                 />
               </div>
               <div>
@@ -1978,10 +2232,9 @@ export default function Suppliers() {
                   step="0.01"
                   value={poFormData.selling_price}
                   onChange={(e) => setPoFormData({ ...poFormData, selling_price: e.target.value })}
-                  disabled={!poFormData.is_new}
                   required
                   placeholder="0.00"
-                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-slate-50 disabled:bg-slate-50"
+                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                 />
               </div>
             </div>
@@ -2004,7 +2257,6 @@ export default function Suppliers() {
                 <select
                   value={poFormData.unit}
                   onChange={(e) => setPoFormData({ ...poFormData, unit: e.target.value })}
-                  disabled={!poFormData.is_new}
                   className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-white font-medium"
                 >
                   <option value="piece">Piece</option>
