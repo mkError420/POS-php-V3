@@ -302,6 +302,30 @@ export default function SalesHistory() {
     triggerAlert('success', 'Sales history exported successfully!');
   };
 
+  const handleDueBillsPrint = () => {
+    const printWindow = window.open('', 'PRINT', 'height=800,width=1200');
+    
+    printWindow.document.write('<html><head><title>Outstanding Due Bills Report</title>');
+    printWindow.document.write(`
+      <style>
+        body { font-family: sans-serif; margin: 20px; }
+        h1 { text-align: center; color: #333; }
+        table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        @page { size: A4 landscape; margin: 20mm; }
+      </style>
+    `);
+    printWindow.document.write('</head><body>');
+    printWindow.document.write('<h1>Outstanding Due Bills</h1>');
+    printWindow.document.write(document.getElementById('due-bills-table-wrapper').innerHTML);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
   const exportDueBillsToCSV = () => {
     const dueBills = heldBills.filter(b => b.status === 'held' && parseFloat(b.due_amount || 0) > 0);
     if (dueBills.length === 0) {

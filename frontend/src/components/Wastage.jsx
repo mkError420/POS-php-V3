@@ -183,7 +183,7 @@ export default function Wastage() {
       return;
     }
 
-    const headers = ['Wastage ID', 'Adjustment Date', 'Product Name', 'Product SKU', 'Quantity Adjusted', 'Estimated Loss (Cost)', 'Reason', 'Notes', 'Shop Name'];
+    const headers = ['Wastage ID', 'Adjustment Date', 'Product Name', 'Product SKU', 'Qty', 'Unit', 'Estimated Loss (Cost)', 'Reason', 'Notes', 'Shop Name'];
 
     const escapeCSV = (val) => {
       if (val === null || val === undefined) return '';
@@ -199,7 +199,8 @@ export default function Wastage() {
       `"${new Date(w.adjusted_at).toLocaleString()}"`,
       escapeCSV(w.product_name),
       escapeCSV(w.product_sku),
-      w.quantity,
+      w.quantity, // Qty
+      escapeCSV(w.unit || 'piece'), // Unit
       parseFloat(w.cost_loss || 0).toFixed(2),
       escapeCSV(w.reason),
       escapeCSV(w.notes || ''),

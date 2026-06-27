@@ -788,7 +788,7 @@ export default function TotalRevenue() {
             // Pie Chart Slices (Revenue Breakdown)
             const pieSlices = [
               { label: 'Net Trading Profit', val: profit > 0 ? profit : 0, color: '#10b981' },
-              { label: 'Cost of Goods Sold (COGS)', val: cogs, color: '#6366f1' },
+              { label: 'Total Sold(TS)', val: cogs, color: '#6366f1' },
               { label: 'Other Costs', val: other, color: '#f59e0b' },
               { label: 'Wastage Loss', val: wastage, color: '#f43f5e' }
             ].filter(s => s.val > 0);
@@ -800,67 +800,11 @@ export default function TotalRevenue() {
             const doughnutSlices = [
               { label: 'Cost of Goods (COGS)', val: cogs, color: '#6366f1' },
               { label: 'Other Costs', val: other, color: '#f59e0b' },
-              { label: 'Wastage Loss', val: wastage, color: '#f43f5e' }
+              { label: 'Wastage Loss', val: wastage, color: '#ef4444' }
             ].filter(s => s.val > 0);
 
             const totalDoughnutVal = doughnutSlices.reduce((sum, s) => sum + s.val, 0) || 1;
             doughnutSlices.forEach(s => s.percent = s.val / totalDoughnutVal);
-
-            // Path generator helper
-            const getCoordinatesForPercent = (percent) => {
-              const x = Math.cos(2 * Math.PI * (percent - 0.25));
-              const y = Math.sin(2 * Math.PI * (percent - 0.25));
-              return [x, y];
-            };
-
-            const renderPiePath = (slices, cx, cy, r, chartKey) => {
-              let cumulativePercent = 0;
-              return slices.map((slice, idx) => {
-                if (slice.percent >= 0.999) {
-                  return (
-                    <circle
-                      key={idx}
-                      cx={cx}
-                      cy={cy}
-                      r={r}
-                      fill={slice.color}
-                      className="cursor-pointer transition-all duration-150 hover:opacity-90"
-                      onMouseEnter={() => setHoveredSlice({ chart: chartKey, index: idx, ...slice })}
-                      onMouseLeave={() => setHoveredSlice(null)}
-                    />
-                  );
-                }
-
-                const startPercent = cumulativePercent;
-                cumulativePercent += slice.percent;
-
-                const [startX, startY] = getCoordinatesForPercent(startPercent);
-                const [endX, endY] = getCoordinatesForPercent(cumulativePercent);
-
-                const x1 = cx + startX * r;
-                const y1 = cy + startY * r;
-                const x2 = cx + endX * r;
-                const y2 = cy + endY * r;
-
-                const largeArcFlag = slice.percent > 0.5 ? 1 : 0;
-                const pathData = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
-
-                const isHovered = hoveredSlice?.chart === chartKey && hoveredSlice?.index === idx;
-
-                return (
-                  <path
-                    key={idx}
-                    d={pathData}
-                    fill={slice.color}
-                    opacity={isHovered ? '0.9' : '1'}
-                    className="cursor-pointer transition-all duration-150 hover:scale-[1.02] origin-center"
-                    style={{ transformOrigin: `${cx}px ${cy}px` }}
-                    onMouseEnter={() => setHoveredSlice({ chart: chartKey, index: idx, ...slice })}
-                    onMouseLeave={() => setHoveredSlice(null)}
-                  />
-                );
-              });
-            };
 
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -868,52 +812,74 @@ export default function TotalRevenue() {
                 {/* 1. Revenues vs Costs Structure (Pie Chart) */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
                   <div>
-                    <h3 className="font-bold text-slate-800 text-base mb-1">Trading Revenue Structure</h3>
-                    <p className="text-xs text-slate-450 mb-6">Distribution breakdown of incoming gross sales revenue</p>
+                    <h3 className="font-bold text-slate-800 text-base mb-1">Revenue Structure</h3>
+                    <p className="text-xs text-slate-450 mb-6">Distribution of gross sales revenue</p>
 
                     <div className="flex flex-col sm:flex-row items-center justify-around gap-6">
                       {/* SVG Canvas */}
                       <div className="relative w-36 h-36 shrink-0">
-                        <svg viewBox="0 0 200 200" className="w-full h-full overflow-visible">
+                        <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
                           {pieSlices.length === 0 ? (
-                            <circle cx="100" cy="100" r="80" fill="#f1f5f9" />
+                            <circle cx="18" cy="18" r="15.915" fill="#f1f5f9" />
                           ) : (
-                            renderPiePath(pieSlices, 100, 100, 80, 'pie')
+                            (() => {
+                              let accumulated = 0;
+                              return pieSlices.map((slice, idx) => {
+                                const percentage = slice.percent * 100;
+                                const strokeDasharray = `${percentage} ${100 - percentage}`;
+                                const strokeDashoffset = -accumulated;
+                                accumulated += percentage;
+                                const isHovered = hoveredSlice?.chart === 'pie' && hoveredSlice?.index === idx;
+
+                                return (
+                                  <circle
+                                    key={idx}
+                                    cx="18"
+                                    cy="18"
+                                    r="15.915"
+                                    fill="transparent"
+                                    stroke={slice.color}
+                                    strokeWidth={isHovered ? "34" : "32"}
+                                    strokeDasharray={strokeDasharray}
+                                    strokeDashoffset={strokeDashoffset}
+                                    className="cursor-pointer transition-all duration-200"
+                                    onMouseEnter={() => setHoveredSlice({ chart: 'pie', index: idx, ...slice })}
+                                    onMouseLeave={() => setHoveredSlice(null)}
+                                  />
+                                );
+                              });
+                            })()
                           )}
                         </svg>
                       </div>
 
                       {/* Legends */}
                       <div className="flex-1 space-y-2 w-full">
-                        {pieSlices.length === 0 ? (
-                          <div className="text-xs text-slate-400 italic">No revenue structure to display.</div>
-                        ) : (
-                          pieSlices.map((slice, idx) => {
-                            const isHovered = hoveredSlice?.chart === 'pie' && hoveredSlice?.index === idx;
-                            return (
-                              <div
-                                key={idx}
-                                className={`flex justify-between items-center text-xs p-1.5 rounded-lg transition-colors ${isHovered ? 'bg-slate-50' : ''
-                                  }`}
-                                onMouseEnter={() => setHoveredSlice({ chart: 'pie', index: idx, ...slice })}
-                                onMouseLeave={() => setHoveredSlice(null)}
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }}></span>
-                                  <span className={`font-medium ${isHovered ? 'text-slate-800 font-bold' : 'text-slate-600'}`}>{slice.label}</span>
-                                </div>
-                                <span className="font-bold text-slate-855">{(slice.percent * 100).toFixed(1)}%</span>
+                        {pieSlices.map((slice, idx) => {
+                          const isHovered = hoveredSlice?.chart === 'pie' && hoveredSlice?.index === idx;
+                          return (
+                            <div
+                              key={idx}
+                              className={`flex justify-between items-center text-xs p-1.5 rounded-lg transition-colors ${isHovered ? 'bg-slate-50' : ''}`}
+                              onMouseEnter={() => setHoveredSlice({ chart: 'pie', index: idx, ...slice })}
+                              onMouseLeave={() => setHoveredSlice(null)}
+                            >
+                              <div className="flex items-center space-x-2">
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }}></span>
+                                <span className={`font-medium ${isHovered ? 'text-slate-800 font-bold' : 'text-slate-600'}`}>{slice.label}</span>
                               </div>
-                            );
-                          })
-                        )}
+                              <span className="font-bold text-slate-855">{(slice.percent * 100).toFixed(1)}%</span>
+                            </div>
+                          );
+                        })}
+                        {pieSlices.length === 0 && <div className="text-xs text-slate-400 italic">No revenue data to display.</div>}
                       </div>
                     </div>
                   </div>
 
                   {hoveredSlice?.chart === 'pie' && (
                     <div className="mt-4 p-2 bg-indigo-50/40 border border-indigo-100/50 rounded-xl text-center text-xs">
-                      <span className="font-semibold text-slate-500">{hoveredSlice.label}:</span>{' '}
+                      <span className="font-semibold text-slate-500">{hoveredSlice.label}:</span>
                       <span className="font-extrabold text-indigo-700">{formatCurrency(hoveredSlice.val)}</span>
                     </div>
                   )}
@@ -922,58 +888,82 @@ export default function TotalRevenue() {
                 {/* 2. Expenses Allocation Breakdown (Doughnut Chart) */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
                   <div>
-                    <h3 className="font-bold text-slate-800 text-base mb-1">Expenses Allocation</h3>
-                    <p className="text-xs text-slate-450 mb-6">Split of active outgoing cost accounts and damage write-offs</p>
+                    <h3 className="font-bold text-slate-800 text-base mb-1">Expense Allocation</h3>
+                    <p className="text-xs text-slate-450 mb-6">Split of outgoing costs and write-offs</p>
 
                     <div className="flex flex-col sm:flex-row items-center justify-around gap-6">
                       {/* SVG Canvas */}
                       <div className="relative w-36 h-36 shrink-0">
-                        <svg viewBox="0 0 200 200" className="w-full h-full overflow-visible">
+                        <svg viewBox="0 0 36 36" className="w-full h-full">
+                          <circle cx="18" cy="18" r="15.915" fill="none" stroke="#e2e8f0" strokeWidth="3.8" />
                           {doughnutSlices.length === 0 ? (
-                            <circle cx="100" cy="100" r="80" fill="#f1f5f9" />
+                            <circle cx="18" cy="18" r="15.915" fill="#f1f5f9" strokeWidth="3.8" />
                           ) : (
                             <>
-                              {renderPiePath(doughnutSlices, 100, 100, 80, 'doughnut')}
-                              {/* Inner Doughnut hole */}
-                              <circle cx="100" cy="100" r="50" fill="#ffffff" />
-                              <text x="100" y="96" textAnchor="middle" className="text-[9px] font-bold text-slate-400 fill-current uppercase tracking-wider font-sans">Total Spent</text>
-                              <text x="100" y="112" textAnchor="middle" className="text-[11px] font-black text-slate-700 fill-current font-sans">৳{Math.round(totalExpenses)}</text>
+                              {(() => {
+                                let accumulated = 0;
+                                return doughnutSlices.map((slice, idx) => {
+                                  const percentage = slice.percent * 100;
+                                  const strokeDasharray = `${percentage} ${100 - percentage}`;
+                                  const strokeDashoffset = 25 - accumulated;
+                                  accumulated += percentage;
+                                  const isHovered = hoveredSlice?.chart === 'doughnut' && hoveredSlice?.index === idx;
+
+                                  return (
+                                    <circle
+                                      key={idx}
+                                      cx="18"
+                                      cy="18"
+                                      r="15.915"
+                                      fill="none"
+                                      stroke={slice.color}
+                                      strokeWidth={isHovered ? "4.2" : "3.8"}
+                                      strokeDasharray={strokeDasharray}
+                                      strokeDashoffset={strokeDashoffset}
+                                      strokeLinecap="round"
+                                      className="cursor-pointer transition-all duration-200"
+                                      onMouseEnter={() => setHoveredSlice({ chart: 'doughnut', index: idx, ...slice })}
+                                      onMouseLeave={() => setHoveredSlice(null)}
+                                    />
+                                  );
+                                });
+                              })()}
                             </>
                           )}
                         </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Spent</span>
+                          <span className="text-base font-black text-slate-700">৳{Math.round(totalExpenses)}</span>
+                        </div>
                       </div>
 
                       {/* Legends */}
                       <div className="flex-1 space-y-2 w-full">
-                        {doughnutSlices.length === 0 ? (
-                          <div className="text-xs text-slate-400 italic">No expenses recorded to display.</div>
-                        ) : (
-                          doughnutSlices.map((slice, idx) => {
-                            const isHovered = hoveredSlice?.chart === 'doughnut' && hoveredSlice?.index === idx;
-                            return (
-                              <div
-                                key={idx}
-                                className={`flex justify-between items-center text-xs p-1.5 rounded-lg transition-colors ${isHovered ? 'bg-slate-50' : ''
-                                  }`}
-                                onMouseEnter={() => setHoveredSlice({ chart: 'doughnut', index: idx, ...slice })}
-                                onMouseLeave={() => setHoveredSlice(null)}
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }}></span>
-                                  <span className={`font-medium ${isHovered ? 'text-slate-800 font-bold' : 'text-slate-600'}`}>{slice.label}</span>
-                                </div>
-                                <span className="font-bold text-slate-855">{(slice.percent * 100).toFixed(1)}%</span>
+                        {doughnutSlices.map((slice, idx) => {
+                          const isHovered = hoveredSlice?.chart === 'doughnut' && hoveredSlice?.index === idx;
+                          return (
+                            <div
+                              key={idx}
+                              className={`flex justify-between items-center text-xs p-1.5 rounded-lg transition-colors ${isHovered ? 'bg-slate-50' : ''}`}
+                              onMouseEnter={() => setHoveredSlice({ chart: 'doughnut', index: idx, ...slice })}
+                              onMouseLeave={() => setHoveredSlice(null)}
+                            >
+                              <div className="flex items-center space-x-2">
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }}></span>
+                                <span className={`font-medium ${isHovered ? 'text-slate-800 font-bold' : 'text-slate-600'}`}>{slice.label}</span>
                               </div>
-                            );
-                          })
-                        )}
+                              <span className="font-bold text-slate-855">{(slice.percent * 100).toFixed(1)}%</span>
+                            </div>
+                          );
+                        })}
+                        {doughnutSlices.length === 0 && <div className="text-xs text-slate-400 italic">No expenses recorded.</div>}
                       </div>
                     </div>
                   </div>
 
                   {hoveredSlice?.chart === 'doughnut' && (
                     <div className="mt-4 p-2 bg-rose-50/40 border border-rose-100/50 rounded-xl text-center text-xs">
-                      <span className="font-semibold text-slate-500">{hoveredSlice.label}:</span>{' '}
+                      <span className="font-semibold text-slate-500">{hoveredSlice.label}:</span>
                       <span className="font-extrabold text-rose-700">{formatCurrency(hoveredSlice.val)}</span>
                     </div>
                   )}

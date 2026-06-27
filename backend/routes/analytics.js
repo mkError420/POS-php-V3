@@ -363,6 +363,14 @@ router.get('/', async (req, res) => {
         ORDER BY sale_date ASC
       `, [shopId]);
 
+      // Get payment method breakdown
+      const [paymentBreakdown] = await db.query(`
+        SELECT payment_method, COUNT(*) as count, SUM(final_amount) as total
+        FROM sales
+        WHERE shop_id = ?
+        GROUP BY payment_method
+      `, [shopId]);
+
       // Populate last 7 days to guarantee 7 points even if some days have 0 sales
       const trendMap = {};
       for (let i = 6; i >= 0; i--) {
@@ -391,7 +399,8 @@ router.get('/', async (req, res) => {
           total_customers: customerStats[0].total_customers
         },
         recent_sales: recentSales,
-        sales_trend: salesTrend
+        sales_trend: salesTrend,
+        payment_method_breakdown: paymentBreakdown
       });
     }
   } catch (error) {

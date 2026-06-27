@@ -31,6 +31,7 @@ export default function Returns() {
     notes: '',
     deduct_from_due: false
   });
+  const [productSearchTerm, setProductSearchTerm] = useState('');
 
   // Helper states for dynamic checkout details
   const [saleLoading, setSaleLoading] = useState(false);
@@ -214,6 +215,11 @@ export default function Returns() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+
+    if (name === 'product_id' && value === '') {
+      // Clear search term if product is deselected
+      setProductSearchTerm('');
+    }
   };
 
   const handleAddSubmit = async (e) => {
@@ -295,6 +301,7 @@ export default function Returns() {
     setSelectedSaleDetails(null);
     setSelectedProductDetails(null);
     setCustomerDueBalance(0);
+    setProductSearchTerm('');
   };
 
   const exportReturnsToCSV = () => {
@@ -357,6 +364,13 @@ export default function Returns() {
            (r.notes && r.notes.toLowerCase().includes(searchLower));
   });
 
+  const getFilteredProductsForReturn = () => {
+    if (!productSearchTerm) return [];
+    const lowerTerm = productSearchTerm.toLowerCase();
+    return products.filter(p =>
+      p.name.toLowerCase().includes(lowerTerm) || (p.sku && p.sku.toLowerCase().includes(lowerTerm))
+    );
+  };
   const totalPages = Math.ceil(filteredReturns.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -659,28 +673,58 @@ export default function Returns() {
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
                   Product to Return *
                 </label>
-                <select
-                  name="product_id"
-                  value={formData.product_id}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-1 focus:ring-indigo-500 outline-none bg-white text-slate-700"
-                >
-                  <option value="">-- Choose returned product --</option>
+                <div className="relative">
                   {selectedSaleDetails ? (
-                    selectedSaleDetails.items?.map(i => (
-                      <option key={i.product_id} value={i.product_id}>
-                        {i.product_name} (SKU: {i.product_sku}) | Purchased Qty: {i.quantity} @ {formatCurrency(i.unit_price)}
-                      </option>
-                    ))
+                    <select
+                      name="product_id"
+                      value={formData.product_id}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-1 focus:ring-indigo-500 outline-none bg-white text-slate-700"
+                    >
+                      <option value="">-- Choose from sale invoice --</option>
+                      {selectedSaleDetails.items?.map(i => (
+                        <option key={i.product_id} value={i.product_id}>
+                          {i.product_name} (SKU: {i.product_sku}) | Qty: {i.quantity}
+                        </option>
+                      ))}
+                    </select>
                   ) : (
-                    products.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} (SKU: {p.sku}) | Price: {formatCurrency(p.price)} | Stock: {p.stock_quantity}
-                      </option>
-                    ))
+                    <>
+                      <input
+                        type="text"
+                        value={productSearchTerm}
+                        onChange={(e) => {
+                          setProductSearchTerm(e.target.value);
+                          if (formData.product_id) {
+                            setFormData(prev => ({ ...prev, product_id: '' }));
+                          }
+                        }}
+                        placeholder="Type to search for a product..."
+                        className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
+                      />
+                      {productSearchTerm && getFilteredProductsForReturn().length > 0 && (
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                          {getFilteredProductsForReturn().map(p => (
+                            <div
+                              key={p.id}
+                              onClick={() => {
+                                setFormData(prev => ({ ...prev, product_id: p.id }));
+                                setProductSearchTerm(`${p.name} (SKU: ${p.sku})`);
+                              }}
+                              className="p-2.5 hover:bg-indigo-50 cursor-pointer text-xs"
+                            >
+                              <div className="font-semibold text-slate-800">{p.name}</div>
+                              <div className="text-slate-500">
+                                SKU: {p.sku} | Stock: {p.stock_quantity} | Price: {formatCurrency(p.price)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
-                </select>
+                </div>
               </div>
 
               {/* Customer Select */}

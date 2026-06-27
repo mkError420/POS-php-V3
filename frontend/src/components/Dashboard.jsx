@@ -20,6 +20,7 @@ export default function Dashboard({ onNavigate = () => {} }) {
   const [recentSales, setRecentSales] = useState([]);
   const [tenantBreakdown, setTenantBreakdown] = useState([]);
   const [salesTrend, setSalesTrend] = useState([]);
+  const [paymentBreakdown, setPaymentBreakdown] = useState([]);
   const [chartType, setChartType] = useState('revenue'); // 'revenue' or 'sales'
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -49,6 +50,9 @@ export default function Dashboard({ onNavigate = () => {} }) {
       }
       if (data.sales_trend) {
         setSalesTrend(data.sales_trend);
+      }
+      if (data.payment_method_breakdown) {
+        setPaymentBreakdown(data.payment_method_breakdown);
       }
     } catch (err) {
       console.error(err);
@@ -638,10 +642,10 @@ export default function Dashboard({ onNavigate = () => {} }) {
       </div>
 
       {/* 3. Detailed Data Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         
         {/* Left Col: Recent Transactions (Span 2) */}
-        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col">
+        <div className="lg:col-span-3 bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col">
           <h3 className="text-lg font-bold text-slate-800 mb-4">Recent Transactions</h3>
           <div className="flex-1 overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -685,35 +689,102 @@ export default function Dashboard({ onNavigate = () => {} }) {
           </div>
         </div>
 
-        {/* Right Col: Quick Actions & Inventory Alert */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-          <h3 className="text-lg font-bold text-slate-800">Quick Inventory Status</h3>
-          <div className="border border-slate-100 rounded-xl p-4 bg-slate-50 space-y-2">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Catalog Health</h4>
-            <div className="flex justify-between items-center text-sm font-semibold">
-              <span className="text-slate-600">Total Products listed:</span>
-              <span className="text-slate-800">{metrics.total_products}</span>
-            </div>
-            <div className="flex justify-between items-center text-sm font-semibold">
-              <span className="text-slate-600">Low stock alert count:</span>
-              <span className={metrics.low_stock_alerts > 0 ? 'text-rose-600' : 'text-slate-800'}>
-                {metrics.low_stock_alerts}
-              </span>
-            </div>
+        {/* Right Col: Charts & Actions (Span 2) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Payment Methods Donut Chart */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
+            <h3 className="text-lg font-bold text-slate-800 mb-4">Sales by Payment Method</h3>
+            {paymentBreakdown.length > 0 ? (
+              <div className="grid grid-cols-2 gap-4 items-center">
+                {/* Donut Chart SVG */}
+                <div className="relative w-full aspect-square">
+                  <svg viewBox="0 0 36 36" className="w-full h-full">
+                    <circle cx="18" cy="18" r="15.915" fill="none" stroke="#e2e8f0" strokeWidth="3" />
+                    {(() => {
+                      const totalValue = paymentBreakdown.reduce((sum, item) => sum + parseFloat(item.total), 0);
+                      let accumulated = 0;
+                      const colors = ['#4f46e5', '#10b981', '#f59e0b', '#8b5cf6'];
+
+                      return paymentBreakdown.map((item, index) => {
+                        const percentage = (item.total / totalValue) * 100;
+                        const strokeDasharray = `${percentage} ${100 - percentage}`;
+                        const strokeDashoffset = 25 - accumulated;
+                        accumulated += percentage;
+
+                        return (
+                          <circle
+                            key={index}
+                            cx="18"
+                            cy="18"
+                            r="15.915"
+                            fill="none"
+                            stroke={colors[index % colors.length]}
+                            strokeWidth="3.2"
+                            strokeDasharray={strokeDasharray}
+                            strokeDashoffset={strokeDashoffset}
+                            strokeLinecap="round"
+                          />
+                        );
+                      });
+                    })()}
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-xs text-slate-400 font-semibold">Total</span>
+                    <span className="text-xl font-extrabold text-slate-800">৳{parseFloat(metrics.revenue).toFixed(0)}</span>
+                  </div>
+                </div>
+
+                {/* Legend */}
+                <div className="space-y-2.5 text-sm">
+                  {(() => {
+                    const colors = ['#4f46e5', '#10b981', '#f59e0b', '#8b5cf6'];
+                    return paymentBreakdown.map((item, index) => (
+                      <div key={index} className="flex items-center">
+                        <span className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: colors[index % colors.length] }}></span>
+                        <span className="font-semibold text-slate-700 capitalize">{item.payment_method.replace('_', ' ')}:</span>
+                        <span className="ml-auto font-bold text-slate-500">{item.count}</span>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+            ) : (
+              <div className="h-32 flex items-center justify-center text-slate-400 text-sm">
+                No payment data available.
+              </div>
+            )}
           </div>
-          
-          <div className="space-y-2.5">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Quick Actions</h4>
-            <a
-              href="#"
-              onClick={(e) => { e.preventDefault(); onNavigate('/checkout'); }}
-              className="w-full flex items-center justify-center space-x-2 bg-slate-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl text-sm shadow transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>Launch POS Checkout</span>
-            </a>
+
+          {/* Quick Actions & Inventory Alert */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+            <h3 className="text-lg font-bold text-slate-800">Quick Inventory Status</h3>
+            <div className="border border-slate-100 rounded-xl p-4 bg-slate-50 space-y-2">
+              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Catalog Health</h4>
+              <div className="flex justify-between items-center text-sm font-semibold">
+                <span className="text-slate-600">Total Products listed:</span>
+                <span className="text-slate-800">{metrics.total_products}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm font-semibold">
+                <span className="text-slate-600">Low stock alert count:</span>
+                <span className={metrics.low_stock_alerts > 0 ? 'text-rose-600' : 'text-slate-800'}>
+                  {metrics.low_stock_alerts}
+                </span>
+              </div>
+            </div>
+            
+            <div className="space-y-2.5 pt-2">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Quick Actions</h4>
+              <a
+                href="#"
+                onClick={(e) => { e.preventDefault(); onNavigate('/checkout'); }}
+                className="w-full flex items-center justify-center space-x-2 bg-slate-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl text-sm shadow transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Launch POS Checkout</span>
+              </a>
+            </div>
           </div>
         </div>
 

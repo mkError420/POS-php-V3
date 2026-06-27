@@ -138,7 +138,7 @@ router.post('/', authorize(['shop_admin', 'shop_staff']), async (req, res) => {
         const note = `Due from Sale #${saleId}`;
         await connection.query(
           `INSERT INTO held_bills (shop_id, user_id, customer_id, customer_name, customer_phone, customer_address, discount_percent, notes, items, due_amount, status) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'held')`,
           [
             shopId,
             userId,
@@ -146,11 +146,10 @@ router.post('/', authorize(['shop_admin', 'shop_staff']), async (req, res) => {
             cust.name,
             cust.phone || null,
             cust.address || null,
-            0.00,
+            (discount / calculatedTotal) * 100, // Store discount as a percentage for context
             note, 
-            '[]', // empty items JSON array since it is a due payment tracker
-            dueAmount,
-            'held'
+            JSON.stringify(validatedItems), // Automatically add the sale items to the held bill
+            dueAmount
           ]
         );
       }
@@ -222,6 +221,23 @@ router.get('/', async (req, res) => {
     sql += ' ORDER BY s.created_at DESC';
 
     const [sales] = await db.query(sql, params);
+
+    // In order to support detailed CSV exports, we will now fetch and embed the sale_items for each sale.
+    const saleIds = sales.map(s => s.id);
+    if (saleIds.length > 0) {
+      const [items] = await db.query(
+        `SELECT si.sale_id, si.quantity, p.name as product_name, p.unit 
+         FROM sale_items si 
+         JOIN products p ON si.product_id = p.id 
+         WHERE si.sale_id IN (?) AND si.shop_id = ?`,
+        [saleIds, shopId]
+      );
+
+      sales.forEach(sale => {
+        sale.items = items.filter(item => item.sale_id === sale.id);
+      });
+    }
+
     res.json(sales);
   } catch (error) {
     console.error('Fetch sales error:', error);
