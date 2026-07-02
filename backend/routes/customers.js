@@ -1,8 +1,26 @@
 const express = require('express');
 const db = require('../config/db');
 const { authenticate, authorize, enforceTenant } = require('../middleware/auth');
+const multer = require('multer');
+const csv = require('csv-parser');
+const fs = require('fs');
+const path = require('path');
 
 const router = express.Router();
+
+// Configure multer for CSV file upload
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only CSV files are allowed'), false);
+    }
+  },
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 router.use(authenticate);
 router.use(enforceTenant);
@@ -47,6 +65,113 @@ router.post('/', authorize(['shop_admin', 'shop_staff']), async (req, res) => {
     console.error('Create customer error:', error);
     res.status(500).json({ error: 'Server error creating customer profile.' });
   }
+});
+
+/**
+ * @route   POST /api/customers/bulk-upload
+ * @desc    Bulk upload customers from CSV file
+ */
+router.post('/bulk-upload', authorize(['shop_admin']), (req, res) => {
+  upload.single('csvFile')(req, res, (err) => {
+    if (err) {
+      console.error('Multer error:', err);
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'File size exceeds 5MB limit.' });
+      }
+      if (err.message === 'Only CSV files are allowed') {
+        return res.status(400).json({ error: 'Only CSV files are allowed.' });
+      }
+      return res.status(400).json({ error: err.message || 'File upload error.' });
+    }
+
+    const shopId = req.shopId;
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No CSV file uploaded.' });
+    }
+
+    (async () => {
+      try {
+        // Parse CSV from buffer
+        const customers = [];
+        const csvData = req.file.buffer.toString('utf-8').replace(/^\uFEFF/, '');
+        
+        await new Promise((resolve, reject) => {
+          const stream = require('stream');
+          const bufferStream = new stream.PassThrough();
+          bufferStream.end(csvData);
+          
+          bufferStream
+            .pipe(csv({
+              mapHeaders: ({ header }) => header.trim().toLowerCase()
+            }))
+            .on('data', (row) => {
+              customers.push({
+                name: row.name?.trim() || '',
+                email: row.email?.trim() || null,
+                phone: row.phone?.trim() || null,
+                address: row.address?.trim() || null
+              });
+            })
+            .on('end', resolve)
+            .on('error', reject);
+        });
+
+        if (customers.length === 0) {
+          return res.status(400).json({ error: 'CSV file is empty or invalid.' });
+        }
+
+        // Validate and insert customers
+        const validCustomers = [];
+        const errors = [];
+        
+        for (let i = 0; i < customers.length; i++) {
+          const customer = customers[i];
+          const rowNumber = i + 2; // +2 because row 1 is header
+          
+          // Check if row is completely empty
+          const isEmptyRow = !customer.name && !customer.email && !customer.phone && !customer.address;
+          if (isEmptyRow) {
+            continue;
+          }
+          
+          if (!customer.name) {
+            errors.push(`Row ${rowNumber}: Customer name is required`);
+            continue;
+          }
+          
+          validCustomers.push(customer);
+        }
+
+        if (validCustomers.length === 0) {
+          return res.status(400).json({ error: 'No valid customers found in CSV.', errors });
+        }
+
+        // Bulk insert customers
+        const values = validCustomers.map(customer => [
+          shopId,
+          customer.name,
+          customer.email,
+          customer.phone,
+          customer.address
+        ]);
+
+        await db.query(
+          'INSERT INTO customers (shop_id, name, email, phone, address) VALUES ?',
+          [values]
+        );
+
+        res.status(201).json({ 
+          message: `Successfully imported ${validCustomers.length} customers.`,
+          imported: validCustomers.length,
+          errors: errors.length > 0 ? errors : undefined
+        });
+      } catch (error) {
+        console.error('Bulk upload error:', error);
+        res.status(500).json({ error: 'Server error processing CSV upload.' });
+      }
+    })();
+  });
 });
 
 /**

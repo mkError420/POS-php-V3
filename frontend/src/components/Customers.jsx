@@ -41,6 +41,13 @@ export default function Customers() {
     address: ''
   });
 
+  // CSV upload states
+  const [useCsvUpload, setUseCsvUpload] = useState(false);
+  const [csvFile, setCsvFile] = useState(null);
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [csvErrors, setCsvErrors] = useState([]);
+  const [csvSuccessMessage, setCsvSuccessMessage] = useState('');
+
  const handleHistoryPrint = () => {
     const handleAfterPrint = () => {
       document.body.classList.remove('print-mode-history');
@@ -285,7 +292,7 @@ export default function Customers() {
     }
   };
 
-  const resetForm = () => {
+  const resetForm = (resetTabState = true) => {
     setFormData({
       name: '',
       email: '',
@@ -293,6 +300,73 @@ export default function Customers() {
       address: ''
     });
     setCurrentCustomer(null);
+    setCsvFile(null);
+    if (resetTabState) {
+      setUseCsvUpload(false);
+    }
+    setCsvErrors([]);
+    setCsvSuccessMessage('');
+  };
+
+  const handleCsvFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.name.endsWith('.csv')) {
+        triggerAlert('error', 'Please select a CSV file.');
+        return;
+      }
+      setCsvFile(file);
+    }
+  };
+
+  const handleCsvUpload = async (e) => {
+    e.preventDefault();
+    if (!csvFile) {
+      triggerAlert('error', 'Please select a CSV file to upload.');
+      return;
+    }
+
+    setCsvUploading(true);
+    setCsvErrors([]);
+    setCsvSuccessMessage('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('csvFile', csvFile);
+
+      const response = await fetch(`${API_BASE_URL}/customers/bulk-upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const resData = await response.json();
+
+      if (response.ok) {
+        if (resData.errors && resData.errors.length > 0) {
+          setCsvErrors(resData.errors);
+          setCsvSuccessMessage(resData.message || `Imported ${resData.imported} customers, but some rows were skipped.`);
+          triggerAlert('success', `Imported ${resData.imported} customers, check skipped rows.`);
+        } else {
+          triggerAlert('success', resData.message || `Successfully imported ${resData.imported} customers.`);
+          setShowAddModal(false);
+          resetForm();
+        }
+        fetchCustomers();
+      } else {
+        if (resData.errors && resData.errors.length > 0) {
+          setCsvErrors(resData.errors);
+        }
+        triggerAlert('error', resData.error || 'Failed to upload CSV.');
+      }
+    } catch (err) {
+      triggerAlert('error', err.message);
+    } finally {
+      setCsvUploading(false);
+    }
   };
 
   const filteredCustomers = customers.filter(customer => {
@@ -481,72 +555,180 @@ export default function Customers() {
               </button>
             </div>
             
-            <form onSubmit={handleAddSubmit} className="mt-4 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Customer Full Name *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="e.g. Alice Cooper"
-                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
+            {/* Toggle between manual entry and CSV upload */}
+            <div className="mt-4 flex bg-slate-100 rounded-lg p-1">
+              <button
+                type="button"
+                onClick={() => { setUseCsvUpload(false); setCsvFile(null); }}
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all ${
+                  !useCsvUpload ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Manual Entry
+              </button>
+              <button
+                type="button"
+                onClick={() => { setUseCsvUpload(true); resetForm(false); }}
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all ${
+                  useCsvUpload ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                CSV Upload
+              </button>
+            </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Phone Number</label>
-                <input
-                  type="text"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  placeholder="555-0140"
-                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
+            {!useCsvUpload ? (
+              <form onSubmit={handleAddSubmit} className="mt-4 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Customer Full Name *</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="e.g. Alice Cooper"
+                    className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Email Address</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="alice@gmail.com"
-                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="555-0140"
+                    className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Physical Address</label>
-                <input
-                  type="text"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  placeholder="123 Dhaka Ave"
-                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="alice@gmail.com"
+                    className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
 
-              <div className="pt-4 border-t border-slate-100 flex space-x-3 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-slate-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors shadow"
-                >
-                  Save Customer
-                </button>
-              </div>
-            </form>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Physical Address</label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    placeholder="123 Dhaka Ave"
+                    className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div className="pt-4 border-t border-slate-100 flex space-x-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-slate-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors shadow"
+                  >
+                    Save Customer
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleCsvUpload} className="mt-4 space-y-4">
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <svg className="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-indigo-800">CSV Format Requirements</p>
+                      <p className="text-xs text-indigo-600 mt-1">Your CSV file must have at least the required column header below. Other column headers are optional:</p>
+                      <code className="block mt-2 text-xs bg-indigo-100 text-indigo-900 p-2 rounded border border-indigo-200">
+                        name, email, phone, address
+                      </code>
+                      <p className="text-xs text-indigo-600 mt-2">Only the "name" column is required. "email", "phone", and "address" are optional.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Select CSV File *</label>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={handleCsvFileChange}
+                      className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 file:mr-4 file:py-1 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                    />
+                  </div>
+                  {csvFile && (
+                    <p className="mt-2 text-xs text-slate-600 flex items-center">
+                      <svg className="w-4 h-4 mr-1 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Selected: {csvFile.name}
+                    </p>
+                  )}
+                </div>
+
+                {csvSuccessMessage && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-medium">
+                    {csvSuccessMessage}
+                  </div>
+                )}
+
+                {csvErrors && csvErrors.length > 0 && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg max-h-40 overflow-y-auto">
+                    <p className="text-xs font-bold text-rose-800 mb-1">Import Warnings / Errors:</p>
+                    <ul className="list-disc pl-4 space-y-1">
+                      {csvErrors.map((err, idx) => (
+                        <li key={idx} className="text-xs text-rose-600 font-medium">{err}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="pt-4 border-t border-slate-100 flex space-x-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={csvUploading || !csvFile}
+                    className="px-5 py-2 bg-slate-600 hover:bg-indigo-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-colors shadow flex items-center space-x-2"
+                  >
+                    {csvUploading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        <span>Upload CSV</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
