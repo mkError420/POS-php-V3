@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-
-const API_BASE_URL = 'http://localhost:5000/api';
+import API_BASE_URL from '../config';
 
 export default function ManualOrders() {
   const [orders, setOrders] = useState([]);

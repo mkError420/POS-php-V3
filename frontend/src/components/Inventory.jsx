@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Adjustments from './Adjustments';
-
-const API_BASE_URL = 'http://localhost:5000/api';
+import API_BASE_URL from '../config';
 
 export default function Inventory() {
   const userObj = JSON.parse(localStorage.getItem('user') || '{}');

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-
-const API_BASE_URL = 'http://localhost:5000/api';
+import API_BASE_URL from '../config';
 
 const createNewSaleTab = (index) => ({
   id: Date.now() + Math.random() * 1000, // Unique ID for the tab with random factor
