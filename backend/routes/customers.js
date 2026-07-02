@@ -314,17 +314,25 @@ router.get('/:id/history', async (req, res) => {
         s.paid_amount,
         s.due_amount,
         si.id AS item_id,
+        si.product_id,
         si.quantity,
         si.unit_price,
         si.subtotal,
         p.name AS product_name,
-        p.sku AS product_sku
+        p.sku AS product_sku,
+        GREATEST(si.quantity - COALESCE(cr.returned_quantity, 0), 0) AS returnable_quantity
       FROM sales s
       LEFT JOIN sale_items si ON s.id = si.sale_id
       LEFT JOIN products p ON si.product_id = p.id
+      LEFT JOIN (
+        SELECT sale_id, product_id, SUM(quantity) AS returned_quantity
+        FROM customer_returns
+        WHERE shop_id = ?
+        GROUP BY sale_id, product_id
+      ) cr ON s.id = cr.sale_id AND si.product_id = cr.product_id
       WHERE s.customer_id = ? AND s.shop_id = ?
       ORDER BY s.created_at DESC`,
-      [customerId, shopId]
+      [shopId, customerId, shopId]
     );
 
     const salesMap = {};
@@ -347,11 +355,13 @@ router.get('/:id/history', async (req, res) => {
       if (row.item_id) {
         salesMap[row.sale_id].items.push({
           item_id: row.item_id,
+          product_id: row.product_id,
           product_name: row.product_name,
           product_sku: row.product_sku,
           quantity: row.quantity,
           unit_price: row.unit_price,
-          subtotal: row.subtotal
+          subtotal: row.subtotal,
+          returnable_quantity: row.returnable_quantity
         });
       }
     });

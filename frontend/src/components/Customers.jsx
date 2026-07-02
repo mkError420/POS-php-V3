@@ -27,6 +27,14 @@ export default function Customers() {
   const [historyCustomer, setHistoryCustomer] = useState(null);
   const [historySales, setHistorySales] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [activeReturnItem, setActiveReturnItem] = useState(null);
+  const [returning, setReturning] = useState(false);
+  const [returnForm, setReturnForm] = useState({
+    quantity: '1',
+    refund_amount: '0.00',
+    notes: '',
+    deduct_from_due: false
+  });
 
   // Due Payment state (inside history modal)
   const [showCollectDueModal, setShowCollectDueModal] = useState(false);
@@ -85,6 +93,96 @@ export default function Customers() {
   const triggerAlert = (type, message) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 4000);
+  };
+
+  const resetReturnForm = () => {
+    setActiveReturnItem(null);
+    setReturnForm({
+      quantity: '1',
+      refund_amount: '0.00',
+      notes: '',
+      deduct_from_due: false
+    });
+  };
+
+  useEffect(() => {
+    if (!activeReturnItem) return;
+
+    const maxQty = parseInt(activeReturnItem.item?.returnable_quantity || 0, 10);
+    const qtyValue = parseInt(returnForm.quantity || '0', 10);
+    const safeQty = Number.isNaN(qtyValue) ? 1 : Math.min(Math.max(qtyValue, 1), maxQty > 0 ? maxQty : 1);
+    const nextAmount = (safeQty * parseFloat(activeReturnItem.item?.unit_price || 0)).toFixed(2);
+
+    setReturnForm(prev => (
+      prev.quantity === String(safeQty) && prev.refund_amount === nextAmount
+        ? prev
+        : { ...prev, quantity: String(safeQty), refund_amount: nextAmount }
+    ));
+  }, [activeReturnItem, returnForm.quantity]);
+
+  const openReturnForm = (sale, item) => {
+    if (!item || parseInt(item.returnable_quantity || 0, 10) <= 0) {
+      triggerAlert('error', 'This purchase has no remaining quantity available to return.');
+      return;
+    }
+
+    setActiveReturnItem({ saleId: sale.sale_id, item });
+    setReturnForm({
+      quantity: '1',
+      refund_amount: (parseFloat(item.unit_price || 0) * 1).toFixed(2),
+      notes: '',
+      deduct_from_due: false
+    });
+  };
+
+  const handleReturnSubmit = async (e) => {
+    e.preventDefault();
+    if (!activeReturnItem || !historyCustomer) return;
+
+    const qty = parseInt(returnForm.quantity, 10);
+    const maxQty = parseInt(activeReturnItem.item?.returnable_quantity || 0, 10);
+
+    if (!qty || qty <= 0) {
+      triggerAlert('error', 'Please enter a valid quantity.');
+      return;
+    }
+
+    if (qty > maxQty) {
+      triggerAlert('error', `You can only return up to ${maxQty} unit${maxQty === 1 ? '' : 's'} for this item.`);
+      return;
+    }
+
+    setReturning(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/returns`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          customer_id: historyCustomer.id,
+          sale_id: parseInt(activeReturnItem.saleId, 10),
+          product_id: parseInt(activeReturnItem.item.product_id, 10),
+          quantity: qty,
+          refund_amount: parseFloat(returnForm.refund_amount || 0),
+          notes: returnForm.notes,
+          deduct_from_due: returnForm.deduct_from_due ? 1 : 0
+        })
+      });
+
+      const resData = await response.json();
+      if (!response.ok) throw new Error(resData.error || 'Failed to record return transaction.');
+
+      triggerAlert('success', 'Return recorded successfully and inventory was updated.');
+      resetReturnForm();
+      await refreshHistoryAndCustomer(historyCustomer.id);
+    } catch (err) {
+      triggerAlert('error', err.message);
+    } finally {
+      setReturning(false);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -1018,16 +1116,101 @@ export default function Customers() {
                                   <th className="pb-1.5 text-center">Qty</th>
                                   <th className="pb-1.5 text-right">Unit Price</th>
                                   <th className="pb-1.5 text-right">Subtotal</th>
+                                  <th className="pb-1.5 text-right">Action</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100 text-slate-700">
                                 {sale.items.map((item) => (
-                                  <tr key={item.item_id}>
-                                    <td className="py-1.5 font-medium">{item.product_name}</td>
-                                    <td className="py-1.5 text-center">{item.quantity}</td>
-                                    <td className="py-1.5 text-right">৳{parseFloat(item.unit_price).toFixed(2)}</td>
-                                    <td className="py-1.5 text-right font-semibold">৳{parseFloat(item.subtotal).toFixed(2)}</td>
-                                  </tr>
+                                  <React.Fragment key={item.item_id}>
+                                    <tr>
+                                      <td className="py-1.5 font-medium">{item.product_name}</td>
+                                      <td className="py-1.5 text-center">{item.quantity}</td>
+                                      <td className="py-1.5 text-right">৳{parseFloat(item.unit_price).toFixed(2)}</td>
+                                      <td className="py-1.5 text-right font-semibold">৳{parseFloat(item.subtotal).toFixed(2)}</td>
+                                      <td className="py-1.5 text-right">
+                                        {parseInt(item.returnable_quantity || 0, 10) > 0 ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => openReturnForm(sale, item)}
+                                            className="text-amber-600 hover:text-amber-800 font-semibold text-[11px] border border-amber-200 hover:bg-amber-50 px-2.5 py-1 rounded-lg transition-colors"
+                                          >
+                                            Return ({item.returnable_quantity})
+                                          </button>
+                                        ) : (
+                                          <span className="text-slate-400 text-[11px] font-medium">Returned</span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                    {activeReturnItem?.item?.item_id === item.item_id && (
+                                      <tr className="bg-amber-50/70">
+                                        <td colSpan="5" className="py-2 px-2">
+                                          <form onSubmit={handleReturnSubmit} className="rounded-xl border border-amber-200 bg-white/80 p-3 space-y-3">
+                                            <div className="flex flex-col md:flex-row md:items-end gap-3">
+                                              <div className="flex-1">
+                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Quantity</label>
+                                                <input
+                                                  type="number"
+                                                  min="1"
+                                                  max={parseInt(item.returnable_quantity || 0, 10)}
+                                                  value={returnForm.quantity}
+                                                  onChange={(e) => setReturnForm(prev => ({ ...prev, quantity: e.target.value }))}
+                                                  className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-1 focus:ring-amber-500 outline-none"
+                                                />
+                                              </div>
+                                              <div className="flex-1">
+                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Refund Amount</label>
+                                                <input
+                                                  type="number"
+                                                  step="0.01"
+                                                  min="0"
+                                                  value={returnForm.refund_amount}
+                                                  onChange={(e) => setReturnForm(prev => ({ ...prev, refund_amount: e.target.value }))}
+                                                  className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-1 focus:ring-amber-500 outline-none"
+                                                />
+                                              </div>
+                                              <div className="flex-1">
+                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Notes</label>
+                                                <input
+                                                  type="text"
+                                                  value={returnForm.notes}
+                                                  onChange={(e) => setReturnForm(prev => ({ ...prev, notes: e.target.value }))}
+                                                  placeholder="Optional reason"
+                                                  className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-1 focus:ring-amber-500 outline-none"
+                                                />
+                                              </div>
+                                            </div>
+                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                              <label className="flex items-center gap-2 text-sm text-slate-600">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={returnForm.deduct_from_due}
+                                                  onChange={(e) => setReturnForm(prev => ({ ...prev, deduct_from_due: e.target.checked }))}
+                                                  className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                                                />
+                                                Deduct refund from customer due balance
+                                              </label>
+                                              <div className="flex items-center gap-2">
+                                                <button
+                                                  type="button"
+                                                  onClick={resetReturnForm}
+                                                  className="px-3 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50"
+                                                >
+                                                  Cancel
+                                                </button>
+                                                <button
+                                                  type="submit"
+                                                  disabled={returning}
+                                                  className="px-3 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 rounded-lg"
+                                                >
+                                                  {returning ? 'Saving...' : 'Save Return'}
+                                                </button>
+                                              </div>
+                                            </div>
+                                          </form>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </React.Fragment>
                                 ))}
                               </tbody>
                             </table>

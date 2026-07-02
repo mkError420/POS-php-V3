@@ -54,10 +54,16 @@ router.post('/', authorize(['shop_admin', 'shop_staff']), async (req, res) => {
       if (saleItemRows.length === 0) {
         throw new Error('This product was not part of the specified sale transaction.');
       }
-      
+
       const soldQty = saleItemRows.reduce((sum, item) => sum + item.quantity, 0);
-      if (quantity > soldQty) {
-        throw new Error(`Cannot return more items than sold (${soldQty}).`);
+      const [returnRows] = await connection.query(
+        'SELECT COALESCE(SUM(quantity), 0) AS returned_qty FROM customer_returns WHERE shop_id = ? AND sale_id = ? AND product_id = ?',
+        [shopId, sale_id, product_id]
+      );
+      const alreadyReturnedQty = parseInt(returnRows[0].returned_qty || 0, 10);
+      const maxReturnQty = soldQty - alreadyReturnedQty;
+      if (quantity > maxReturnQty) {
+        throw new Error(`Cannot return more items than purchased and not yet returned (${maxReturnQty}).`);
       }
     }
 
