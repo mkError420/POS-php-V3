@@ -406,7 +406,7 @@ export default function Customers() {
         customer.phone || '-',
         customer.email || '-',
         customer.address || '-',
-        `৳${parseFloat(customer.due_balance || 0).toFixed(2)}`,
+        `Tk ${parseFloat(customer.due_balance || 0).toFixed(2)}`,
         `${customer.loyalty_points || 0} pts`
       ]);
 

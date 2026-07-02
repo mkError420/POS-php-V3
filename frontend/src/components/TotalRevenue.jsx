@@ -84,7 +84,7 @@ export default function TotalRevenue() {
 
   const formatCurrency = (val) => {
     const numericVal = parseFloat(val || 0);
-    return `৳${numericVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `Tk ${numericVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const formatDate = (dateStr) => {

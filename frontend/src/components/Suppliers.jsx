@@ -71,6 +71,80 @@ export default function Suppliers() {
     paid_amount: ''
   });
 
+  // PO cart for multiple products
+  const [poCart, setPoCart] = useState([]);
+
+  // Add product to PO cart
+  const addToPoCart = () => {
+    if (!poFormData.supplier_id) {
+      triggerAlert('error', 'Please select a supplier first.');
+      return;
+    }
+
+    if (parseInt(poFormData.quantity_ordered) <= 0) {
+      triggerAlert('error', 'Quantity must be at least 1.');
+      return;
+    }
+
+    if (poFormData.is_new && (!poFormData.name || !poFormData.sku)) {
+      triggerAlert('error', 'Product name and SKU are required.');
+      return;
+    }
+
+    if (!poFormData.is_new && !poFormData.product_id) {
+      triggerAlert('error', 'Please select a product.');
+      return;
+    }
+
+    const cartItem = poFormData.is_new ? {
+      is_new: true,
+      name: poFormData.name,
+      sku: poFormData.sku,
+      quantity_ordered: parseInt(poFormData.quantity_ordered),
+      cost_price: parseFloat(poFormData.cost_price || 0),
+      selling_price: parseFloat(poFormData.selling_price || 0),
+      unit: poFormData.unit
+    } : {
+      product_id: parseInt(poFormData.product_id),
+      name: productSearch.split(' (')[0],
+      sku: productSearch.match(/\(([^)]+)\)/)?.[1] || '',
+      quantity_ordered: parseInt(poFormData.quantity_ordered),
+      cost_price: parseFloat(poFormData.cost_price || 0),
+      selling_price: parseFloat(poFormData.selling_price || 0),
+      unit: poFormData.unit
+    };
+
+    setPoCart([...poCart, cartItem]);
+
+    // Reset product form fields
+    setProductSearch('');
+    setPoFormData(prev => ({
+      ...prev,
+      product_id: '',
+      is_new: false,
+      name: '',
+      sku: '',
+      cost_price: '',
+      selling_price: '',
+      quantity_ordered: 1,
+      unit: 'piece'
+    }));
+
+    triggerAlert('success', 'Product added to cart!');
+  };
+
+  // Remove product from PO cart
+  const removeFromPoCart = (index) => {
+    setPoCart(poCart.filter((_, i) => i !== index));
+  };
+
+  // Calculate PO total from cart
+  const calculatePOTotal = () => {
+    return poCart.reduce((total, item) => {
+      return total + (item.cost_price * item.quantity_ordered);
+    }, 0);
+  };
+
   // Receive verification form state
   const [receiveItems, setReceiveItems] = useState([]); // Array of { product_id, quantity_received, cost_price, product_name, sku }
   const [receiveNotes, setReceiveNotes] = useState('');
@@ -392,34 +466,14 @@ export default function Suppliers() {
       triggerAlert('error', 'Supplier selection is required.');
       return;
     }
-    
-    const hasProduct = poFormData.product_id || (poFormData.is_new && poFormData.name && poFormData.sku);
-    if (!hasProduct) {
-      triggerAlert('error', 'Please select a product or define a new one.');
-      return;
-    }
 
-    if (parseInt(poFormData.quantity_ordered) <= 0) {
-      triggerAlert('error', 'Quantity ordered must be at least 1.');
+    if (poCart.length === 0) {
+      triggerAlert('error', 'Please add at least one product to the cart.');
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
-      const poItem = poFormData.is_new ? {
-        is_new: true,
-        name: poFormData.name,
-        sku: poFormData.sku,
-        quantity_ordered: parseInt(poFormData.quantity_ordered),
-        cost_price: parseFloat(poFormData.cost_price || 0),
-        selling_price: parseFloat(poFormData.selling_price || 0)
-      } : {
-        product_id: parseInt(poFormData.product_id),
-        quantity_ordered: parseInt(poFormData.quantity_ordered),
-        cost_price: parseFloat(poFormData.cost_price || 0),
-        selling_price: parseFloat(poFormData.selling_price || 0)
-      };
-
       const response = await fetch(`${API_BASE_URL}/suppliers/purchase-orders`, {
         method: 'POST',
         headers: {
@@ -432,7 +486,7 @@ export default function Suppliers() {
           status: poStatus,
           payment_basis: poFormData.payment_basis,
           paid_amount: poFormData.payment_basis === 'credit' ? parseFloat(poFormData.paid_amount || 0) : undefined,
-          items: [poItem]
+          items: poCart
         })
       });
 
@@ -443,6 +497,22 @@ export default function Suppliers() {
       setShowAddPoModal(false);
       setSupplierSearch('');
       setProductSearch('');
+      setPoCart([]);
+      setPoFormData({
+        supplier_id: '',
+        notes: '',
+        product_id: '',
+        is_new: false,
+        name: '',
+        sku: '',
+        cost_price: '',
+        selling_price: '',
+        quantity_ordered: 1,
+        unit: 'piece',
+        low_stock_threshold: '10',
+        payment_basis: 'cash',
+        paid_amount: ''
+      });
       fetchPurchaseOrders();
       fetchProducts(); // Refresh products cache
       if (selectedSupplierId) {
@@ -834,9 +904,9 @@ export default function Suppliers() {
         po.supplier_name,
         po.order_date ? po.order_date.split('T')[0] : '-',
         po.payment_basis || 'cash',
-        formatCurrency(po.total_amount),
-        formatCurrency(po.paid_amount || 0),
-        formatCurrency(po.due_amount || 0),
+        `Tk ${parseFloat(po.total_amount || 0).toFixed(2)}`,
+        `Tk ${parseFloat(po.paid_amount || 0).toFixed(2)}`,
+        `Tk ${parseFloat(po.due_amount || 0).toFixed(2)}`,
         po.status
       ]);
 
@@ -903,8 +973,8 @@ export default function Suppliers() {
         log.product_name || '-',
         log.product_sku || '-',
         log.supplier_name || '-',
-        formatCurrency(log.old_cost_price || 0),
-        formatCurrency(log.new_cost_price || 0),
+        `Tk ${parseFloat(log.old_cost_price || 0).toFixed(2)}`,
+        `Tk ${parseFloat(log.new_cost_price || 0).toFixed(2)}`,
         log.reason || '-'
       ]);
 
@@ -2487,6 +2557,49 @@ export default function Suppliers() {
                 className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-1 focus:ring-indigo-500 mb-4"
               />
             </div>
+
+            {/* Add to Cart Button */}
+            <button
+              type="button"
+              onClick={addToPoCart}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              <span>Add Product to Cart</span>
+            </button>
+
+            {/* Cart Display */}
+            {poCart.length > 0 && (
+              <div className="mt-4 border border-slate-200 rounded-xl p-4 bg-slate-50">
+                <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center justify-between">
+                  <span>Order Cart ({poCart.length} items)</span>
+                  <span className="text-xs font-normal text-slate-500">Total: {formatCurrency(calculatePOTotal())}</span>
+                </h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {poCart.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between bg-white border border-slate-100 rounded-lg p-2 text-xs">
+                      <div className="flex-1">
+                        <div className="font-semibold text-slate-800">{item.name}</div>
+                        <div className="text-slate-500">
+                          {item.sku} • Qty: {item.quantity_ordered} • Tk {item.cost_price.toFixed(2)} × {item.quantity_ordered} = Tk {(item.cost_price * item.quantity_ordered).toFixed(2)}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFromPoCart(index)}
+                        className="ml-2 text-rose-600 hover:text-rose-800 p-1 hover:bg-rose-50 rounded"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
               <div className="text-sm font-bold text-slate-700 flex flex-col space-y-1">
