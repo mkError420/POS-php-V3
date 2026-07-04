@@ -18,15 +18,34 @@ class OtherController {
         Auth::authorize(['super_admin', 'shop_admin']);
 
         $shopId = Auth::$shopId;
+        $hasShop = $shopId !== null;
+
+        $startDate = $_GET['start_date'] ?? null;
+        $endDate = $_GET['end_date'] ?? null;
 
         try {
-            $stmt = DB::query('SELECT * FROM other_costs WHERE shop_id = ? ORDER BY cost_date DESC', [$shopId]);
+            $sql = 'SELECT o.*, s.name AS shop_name 
+                    FROM other_costs o 
+                    LEFT JOIN shops s ON o.shop_id = s.id 
+                    WHERE ' . ($hasShop ? 'o.shop_id = ?' : '1=1');
+            $params = $hasShop ? [$shopId] : [];
+
+            if (!empty($startDate) && !empty($endDate)) {
+                $sql .= ' AND o.cost_date BETWEEN ? AND ?';
+                $params[] = $startDate;
+                $params[] = $endDate;
+            }
+
+            $sql .= ' ORDER BY o.cost_date DESC';
+
+            $stmt = DB::query($sql, $params);
             $costs = $stmt->fetchAll();
 
             foreach ($costs as &$c) {
                 $c['id'] = (int)$c['id'];
                 $c['shop_id'] = (int)$c['shop_id'];
                 $c['amount'] = (float)$c['amount'];
+                $c['shop_name'] = $c['shop_name'] ?: 'System / Unknown';
             }
 
             header('Content-Type: application/json');
