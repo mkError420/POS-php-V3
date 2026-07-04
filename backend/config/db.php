@@ -8,11 +8,53 @@ class DB {
 
     public static function getConnection() {
         if (self::$pdo === null) {
-            // Load environment variables if helper function exists
-            $host = getenv('DB_HOST') ?: 'localhost';
-            $user = getenv('DB_USER') ?: 'root';
-            $pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
-            $dbName = getenv('DB_NAME') ?: 'multitenant_pos';
+            // Detect if running locally or on production server
+            $isLocal = false;
+            $httpHost = $_SERVER['HTTP_HOST'] ?? '';
+            if (
+                in_array($httpHost, ['localhost', '127.0.0.1', 'localhost:5000']) ||
+                php_sapi_name() === 'cli'
+            ) {
+                $isLocal = true;
+            }
+
+            if ($isLocal) {
+                $defaultHost = '127.0.0.1'; // Using IP instead of localhost avoids socket issues
+                $defaultUser = 'root';
+                $defaultPass = '';
+                $defaultDb   = 'multitenant_pos';
+            } else {
+                $defaultHost = 'sql107.infinityfree.com';
+                $defaultUser = 'if0_42333746';
+                $defaultPass = 'VHxnlDleyPf09'; // Your production DB password
+                $defaultDb   = 'if0_42333746_mk_pos';
+            }
+
+            // Only use environment variables if a .env file actually exists in the project.
+            // This prevents hosting provider defaults (e.g. DB_HOST=localhost) from overriding our values.
+            $envFileExists = false;
+            $envPaths = [
+                dirname(__DIR__) . '/.env',
+                dirname(dirname(__DIR__)) . '/.env'
+            ];
+            foreach ($envPaths as $envPath) {
+                if (file_exists($envPath)) {
+                    $envFileExists = true;
+                    break;
+                }
+            }
+
+            if ($envFileExists) {
+                $host = isset($_ENV['DB_HOST']) ? $_ENV['DB_HOST'] : (getenv('DB_HOST') ?: $defaultHost);
+                $user = isset($_ENV['DB_USER']) ? $_ENV['DB_USER'] : (getenv('DB_USER') ?: $defaultUser);
+                $pass = isset($_ENV['DB_PASS']) ? $_ENV['DB_PASS'] : (getenv('DB_PASS') !== false ? getenv('DB_PASS') : $defaultPass);
+                $dbName = isset($_ENV['DB_NAME']) ? $_ENV['DB_NAME'] : (getenv('DB_NAME') ?: $defaultDb);
+            } else {
+                $host = $defaultHost;
+                $user = $defaultUser;
+                $pass = $defaultPass;
+                $dbName = $defaultDb;
+            }
             $charset = 'utf8mb4';
 
             $dsn = "mysql:host=$host;dbname=$dbName;charset=$charset";
@@ -21,7 +63,7 @@ class DB {
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES   => false,
             ];
-
+ 
             try {
                 self::$pdo = new PDO($dsn, $user, $pass, $options);
                 self::runMigrations();

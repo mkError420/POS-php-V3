@@ -55,8 +55,15 @@ class Auth {
     public static $shopId = null;
 
     public static function authenticate() {
-        $headers = getallheaders();
-        $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? null;
+        $authHeader = null;
+        if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+            $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+        } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+        } else {
+            $headers = getallheaders();
+            $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? null;
+        }
 
         if (!$authHeader || strpos($authHeader, 'Bearer ') !== 0) {
             self::jsonError('Access denied. No token provided.', 401);

@@ -18,7 +18,7 @@ import Wastage from './components/Wastage';
 import Returns from './components/Returns';
 import ManualOrders from './components/ManualOrders';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+import API_BASE_URL from './config';
 
 // Decode JWT payload without verifying signature (verification is done server-side)
 function decodeToken(token) {
@@ -213,14 +213,14 @@ export default function App() {
     if (user.role === 'super_admin') {
       switch (currentPath) {
         case '/dashboard': return <Dashboard />;
-        case '/shops':     return <ManageShops />;
-        case '/users':     return <SystemUsers />;
-        case '/products':  return <Inventory />;
-        case '/wastage':   return <Wastage />;
+        case '/shops': return <ManageShops />;
+        case '/users': return <SystemUsers />;
+        case '/products': return <Inventory />;
+        case '/wastage': return <Wastage />;
         case '/other-cost': return <OtherCost />;
         case '/total-revenue': return <TotalRevenue />;
-        case '/settings':  return <Settings />;
-        default:           return <Dashboard />;
+        case '/settings': return <Settings />;
+        default: return <Dashboard />;
       }
     }
 
@@ -251,20 +251,20 @@ export default function App() {
 
     switch (currentPath) {
       case '/dashboard': return <Dashboard />;
-      case '/checkout':  return <Checkout resumedHeldBill={resumedHeldBill} onClearResumedHeldBill={() => setResumedHeldBill(null)} onHeldBillsChange={(count) => setHeldBillsCount(count)} />;
+      case '/checkout': return <Checkout resumedHeldBill={resumedHeldBill} onClearResumedHeldBill={() => setResumedHeldBill(null)} onHeldBillsChange={(count) => setHeldBillsCount(count)} />;
       case '/held-bills': return <HeldBills onResume={(bill) => { setResumedHeldBill(bill); setCurrentPath('/checkout'); }} onHeldBillsChange={(count) => setHeldBillsCount(count)} />;
-      case '/products':  return <Inventory />;
+      case '/products': return <Inventory />;
       case '/suppliers': return <Suppliers />;
       case '/customers': return <Customers />;
-      case '/sales':     return <SalesHistory />;
+      case '/sales': return <SalesHistory />;
       case '/manual-orders': return <ManualOrders />;
       case '/other-cost': return <OtherCost />;
       case '/total-revenue': return <TotalRevenue />;
       case '/wastage': return <Wastage />;
-      case '/returns':   return <Returns />;
-      case '/staff':     return <ManageStaff />;
-      case '/settings':  return <Settings />;
-      default:           return <Checkout resumedHeldBill={resumedHeldBill} onClearResumedHeldBill={() => setResumedHeldBill(null)} onHeldBillsChange={(count) => setHeldBillsCount(count)} />;
+      case '/returns': return <Returns />;
+      case '/staff': return <ManageStaff />;
+      case '/settings': return <Settings />;
+      default: return <Checkout resumedHeldBill={resumedHeldBill} onClearResumedHeldBill={() => setResumedHeldBill(null)} onHeldBillsChange={(count) => setHeldBillsCount(count)} />;
     }
   };
 

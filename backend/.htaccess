@@ -1,0 +1,26 @@
+# Protect sensitive .env files from public access
+<FilesMatch "^\.env">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 1. Force Global CORS Permissions
+Header always set Access-Control-Allow-Origin "*"
+Header always set Access-Control-Allow-Methods "POST, GET, OPTIONS, DELETE, PUT"
+Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, X-Auth-Token"
+Header always set Access-Control-Allow-Credentials "true"
+
+# 2. Automatically bypass preflight checks
+RewriteEngine On
+
+# Pass Authorization Header to PHP CGI/FastCGI
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ - [R=204,L]
+
+# 3. Handle Standard Application Routing
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]

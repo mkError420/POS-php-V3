@@ -147,7 +147,8 @@ class AnalyticsController {
 
             // Fetch daily sales trend
             $trendSalesSql = 'SELECT DATE_FORMAT(created_at, "%Y-%m-%d") AS date, SUM(final_amount) AS revenue, SUM(paid_amount) AS cash_received 
-                              FROM sales WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1') . ' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY DATE(created_at)';
+                              FROM sales WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1') . ' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
+                              GROUP BY DATE_FORMAT(created_at, "%Y-%m-%d")';
             $stmt = DB::query($trendSalesSql, $hasShop ? [$shopId] : []);
             while ($row = $stmt->fetch()) {
                 $dt = $row['date'];
@@ -163,7 +164,7 @@ class AnalyticsController {
                              JOIN products p ON si.product_id = p.id
                              JOIN sales s ON si.sale_id = s.id
                              WHERE ' . ($hasShop ? 'si.shop_id = ?' : '1=1') . ' AND s.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-                             GROUP BY DATE(s.created_at)';
+                             GROUP BY DATE_FORMAT(s.created_at, "%Y-%m-%d")';
             $stmt = DB::query($trendCogsSql, $hasShop ? [$shopId] : []);
             while ($row = $stmt->fetch()) {
                 $dt = $row['date'];
@@ -174,7 +175,8 @@ class AnalyticsController {
 
             // Fetch daily returns trend
             $trendReturnsSql = 'SELECT DATE_FORMAT(created_at, "%Y-%m-%d") AS date, SUM(refund_amount) AS refunds 
-                                FROM customer_returns WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1') . ' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY DATE(created_at)';
+                                FROM customer_returns WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1') . ' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
+                                GROUP BY DATE_FORMAT(created_at, "%Y-%m-%d")';
             $stmt = DB::query($trendReturnsSql, $hasShop ? [$shopId] : []);
             while ($row = $stmt->fetch()) {
                 $dt = $row['date'];
@@ -188,7 +190,7 @@ class AnalyticsController {
                                      FROM customer_returns cr 
                                      JOIN products p ON cr.product_id = p.id
                                      WHERE ' . ($hasShop ? 'cr.shop_id = ?' : '1=1') . ' AND cr.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-                                     GROUP BY DATE(cr.created_at)';
+                                     GROUP BY DATE_FORMAT(cr.created_at, "%Y-%m-%d")';
             $stmt = DB::query($trendReturnedCogsSql, $hasShop ? [$shopId] : []);
             while ($row = $stmt->fetch()) {
                 $dt = $row['date'];
@@ -199,7 +201,8 @@ class AnalyticsController {
 
             // Fetch daily other costs trend
             $trendOtherSql = 'SELECT DATE_FORMAT(cost_date, "%Y-%m-%d") AS date, SUM(amount) AS other 
-                              FROM other_costs WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1') . ' AND cost_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY DATE(cost_date)';
+                              FROM other_costs WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1') . ' AND cost_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
+                              GROUP BY DATE_FORMAT(cost_date, "%Y-%m-%d")';
             $stmt = DB::query($trendOtherSql, $hasShop ? [$shopId] : []);
             while ($row = $stmt->fetch()) {
                 $dt = $row['date'];
@@ -210,7 +213,8 @@ class AnalyticsController {
 
             // Fetch daily wastages trend
             $trendWastageSql = 'SELECT DATE_FORMAT(adjusted_at, "%Y-%m-%d") AS date, SUM(cost_loss) AS wastage 
-                                FROM wastages WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1') . ' AND adjusted_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY DATE(adjusted_at)';
+                                FROM wastages WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1') . ' AND adjusted_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
+                                GROUP BY DATE_FORMAT(adjusted_at, "%Y-%m-%d")';
             $stmt = DB::query($trendWastageSql, $hasShop ? [$shopId] : []);
             while ($row = $stmt->fetch()) {
                 $dt = $row['date'];
@@ -222,7 +226,8 @@ class AnalyticsController {
             // Fetch daily PO trend
             $trendPoSql = "SELECT DATE_FORMAT(COALESCE(received_date, order_date), '%Y-%m-%d') AS date, SUM(total_amount) AS total, SUM(paid_amount) AS cash_paid 
                            FROM purchase_orders 
-                           WHERE " . ($hasShop ? 'shop_id = ?' : '1=1') . " AND status IN ('ordered', 'received') AND COALESCE(received_date, order_date) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY DATE(COALESCE(received_date, order_date))";
+                           WHERE " . ($hasShop ? 'shop_id = ?' : '1=1') . " AND status IN ('ordered', 'received') AND COALESCE(received_date, order_date) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
+                           GROUP BY DATE_FORMAT(COALESCE(received_date, order_date), '%Y-%m-%d')";
             $stmt = DB::query($trendPoSql, $hasShop ? [$shopId] : []);
             while ($row = $stmt->fetch()) {
                 $dt = $row['date'];
@@ -383,7 +388,7 @@ class AnalyticsController {
                                           COUNT(id) as daily_sales
                                    FROM sales
                                    WHERE shop_id = ? AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-                                   GROUP BY DATE(created_at)
+                                   GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
                                    ORDER BY sale_date ASC", [$shopId]);
                 $trendRows = $stmt->fetchAll();
 

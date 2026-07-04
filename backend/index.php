@@ -1,15 +1,19 @@
 <?php
 /**
- * PHP Front Controller & Router for POS Backend
+ * PHP Front Controller & Router for POS Backend (Fixed for Subfolder Hosting)
  */
 
-// Enable CORS
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Headers: *");
+// Handle dynamic CORS origin requirements for Allow-Credentials
+if (isset($_SERVER['HTTP_ORIGIN'])) {
+    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
+} else {
+    header("Access-Control-Allow-Origin: *");
+}
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Auth-Token");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Credentials: true");
 
-// Handle OPTIONS requests (CORS preflight)
+// Handle OPTIONS requests (CORS preflight) immediately before running router logic
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
@@ -57,14 +61,24 @@ require_once __DIR__ . '/controllers/OtherController.php';
 
 // Parse Request URI and Method
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-// Normalize URI (remove leading/trailing slashes)
 $uri = trim($requestUri, '/');
 
-// Support running on subdirectories (e.g. if served under /api or if index.php is hit directly)
-// We normalize to ignore prefix 'api/' or index.php if present
-if (strpos($uri, 'api/') === 0) {
-    $uri = substr($uri, 4);
-} else if ($uri === 'api') {
+// FIX: Dynamic directory normalization. Strips 'backend/', 'api/', or 'index.php' matching your subfolder setup.
+$prefixesToRemove = ['backend/api', 'backend', 'api'];
+foreach ($prefixesToRemove as $prefix) {
+    if (strpos($uri, $prefix . '/') === 0) {
+        $uri = substr($uri, strlen($prefix) + 1);
+        break;
+    } else if ($uri === $prefix) {
+        $uri = '';
+        break;
+    }
+}
+
+// Remove trailing index.php references if hit directly
+if (strpos($uri, 'index.php/') === 0) {
+    $uri = substr($uri, 10);
+} else if ($uri === 'index.php') {
     $uri = '';
 }
 
@@ -107,6 +121,100 @@ $routes = [
         '/^health$/' => function() {
             header('Content-Type: application/json');
             echo json_encode(['status' => 'healthy', 'timestamp' => date('c')]);
+        },
+        // Diagnostics
+        '/^diagnostic$/' => function() {
+            header('Content-Type: text/plain');
+            try {
+                $pdo = DB::getConnection();
+                echo "==================================================\n";
+                echo "DATABASE DIAGNOSTICS FOR LIVE/LOCAL CONFIGURATION\n";
+                echo "==================================================\n\n";
+
+                // 1. Check Shops
+                echo "--- Shops in Database ---\n";
+                $stmt = $pdo->query("SELECT id, name, status FROM shops");
+                $shops = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                if (empty($shops)) {
+                    echo "No shops found in the database.\n";
+                } else {
+                    foreach ($shops as $shop) {
+                        echo "Shop ID: {$shop['id']} | Name: {$shop['name']} | Status: {$shop['status']}\n";
+                    }
+                }
+                echo "\n";
+
+                // 2. Check Users
+                echo "--- Users in Database ---\n";
+                $stmt = $pdo->query("SELECT id, shop_id, name, email, role, status FROM users");
+                $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                if (empty($users)) {
+                    echo "No users found in the database.\n";
+                } else {
+                    foreach ($users as $user) {
+                        $shop_id = $user['shop_id'] !== null ? $user['shop_id'] : 'NULL (Super Admin)';
+                        echo "User ID: {$user['id']} | Email: {$user['email']} | Role: {$user['role']} | Shop ID: $shop_id | Status: {$user['status']}\n";
+                    }
+                }
+                echo "\n";
+
+                // 3. Count products by shop_id
+                echo "--- Data Counts grouped by shop_id ---\n";
+                $tables = ['products', 'customers', 'sales', 'suppliers', 'purchase_orders', 'other_costs', 'wastages', 'held_bills', 'manual_orders'];
+                
+                foreach ($tables as $table) {
+                    try {
+                        $stmt = $pdo->query("SELECT shop_id, COUNT(*) as count FROM `$table` GROUP BY shop_id");
+                        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                        echo "Table `$table`:\n";
+                        if (empty($results)) {
+                            echo "  No data found.\n";
+                        } else {
+                            foreach ($results as $res) {
+                                echo "  Shop ID: {$res['shop_id']} -> Count: {$res['count']}\n";
+                            }
+                        }
+                    } catch (\Exception $ex) {
+                        echo "Table `$table` failed to query: " . $ex->getMessage() . "\n";
+                    }
+                }
+                echo "\n";
+
+                // 4. Products Table Columns Inspection
+                echo "--- Products Table Columns ---\n";
+                try {
+                    $stmt = $pdo->query("DESCRIBE products");
+                    $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    foreach ($columns as $col) {
+                        echo "Field: {$col['Field']} | Type: {$col['Type']} | Null: {$col['Null']} | Default: {$col['Default']}\n";
+                    }
+                } catch (\Exception $e) {
+                    echo "Failed to describe products: " . $e->getMessage() . "\n";
+                }
+                echo "\n";
+
+                // 5. Simulate listProducts Query
+                echo "--- Simulating products query for Shop ID 2 ---\n";
+                try {
+                    $sql = "SELECT p.*, s.name AS supplier_name, sh.name AS shop_name
+                            FROM products p
+                            LEFT JOIN suppliers s ON p.supplier_id = s.id
+                            LEFT JOIN shops sh ON p.shop_id = sh.id
+                            WHERE p.shop_id = ?";
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute([2]);
+                    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    echo "Query succeeded! Returned " . count($results) . " products.\n";
+                } catch (\Exception $e) {
+                    echo "QUERY FAILED: " . $e->getMessage() . "\n";
+                }
+                
+                echo "\n==================================================\n";
+
+            } catch (\Exception $e) {
+                echo "CRITICAL: Database connection failed: " . $e->getMessage() . "\n";
+            }
+            exit;
         },
         // Auth
         '/^auth\/me$/' => function() { AuthController::getMe(); },
