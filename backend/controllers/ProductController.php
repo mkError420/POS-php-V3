@@ -355,6 +355,10 @@ class ProductController {
             $errors = [];
             $rowNumber = 1;
 
+            // Group products by supplier for PO creation
+            $productsBySupplier = [];
+            $newProductIds = []; // Track new product IDs for cost logs
+
             while (($row = fgetcsv($handle)) !== false) {
                 $rowNumber++;
                 
@@ -365,7 +369,27 @@ class ProductController {
                     $costPrice = floatval($row[$columnMap['cost_price']] ?? 0);
                     $stockQuantity = $columnMap['stock_quantity'] !== false ? intval($row[$columnMap['stock_quantity']] ?? 0) : 0;
                     $lowStockThreshold = $columnMap['low_stock_threshold'] !== false ? intval($row[$columnMap['low_stock_threshold']] ?? 10) : 10;
-                    $expiryDate = $columnMap['expiry_date'] !== false ? trim($row[$columnMap['expiry_date']] ?? '') : '';
+                    $expiryDateRaw = $columnMap['expiry_date'] !== false ? trim($row[$columnMap['expiry_date']] ?? '') : '';
+                    $expiryDate = '';
+                    // Parse expiry date from various formats
+                    if (!empty($expiryDateRaw)) {
+                        // Try common date formats
+                        $formats = ['Y-m-d', 'd/m/Y', 'm/d/Y', 'Y/m/d', 'd-m-Y', 'm-d-Y', 'Y-m-d', 'd M Y', 'M d Y'];
+                        foreach ($formats as $format) {
+                            $date = \DateTime::createFromFormat($format, $expiryDateRaw);
+                            if ($date !== false) {
+                                $expiryDate = $date->format('Y-m-d');
+                                break;
+                            }
+                        }
+                        // If still not parsed, try strtotime
+                        if (empty($expiryDate)) {
+                            $timestamp = strtotime($expiryDateRaw);
+                            if ($timestamp !== false) {
+                                $expiryDate = date('Y-m-d', $timestamp);
+                            }
+                        }
+                    }
                     $supplierId = $columnMap['supplier_id'] !== false ? trim($row[$columnMap['supplier_id']] ?? '') : '';
                     $unit = $columnMap['unit'] !== false ? trim($row[$columnMap['unit']] ?? 'piece') : 'piece';
 
@@ -475,6 +499,29 @@ class ProductController {
                                 $unit
                             ]
                         );
+
+                        $newProductId = DB::lastInsertId();
+
+                        // Track new product for PO creation and cost logs
+                        if ($resolvedSupplierId !== null) {
+                            if (!isset($productsBySupplier[$resolvedSupplierId])) {
+                                $productsBySupplier[$resolvedSupplierId] = [];
+                            }
+                            $productsBySupplier[$resolvedSupplierId][] = [
+                                'product_id' => $newProductId,
+                                'name' => $name,
+                                'sku' => $sku,
+                                'quantity' => $stockQuantity,
+                                'cost_price' => $costPrice,
+                                'selling_price' => $price,
+                                'expiry_date' => !empty($expiryDate) ? $expiryDate : null
+                            ];
+                            $newProductIds[] = [
+                                'product_id' => $newProductId,
+                                'supplier_id' => $resolvedSupplierId,
+                                'cost_price' => $costPrice
+                            ];
+                        }
                     }
 
                     $successCount++;
@@ -486,6 +533,57 @@ class ProductController {
             }
 
             fclose($handle);
+
+            // Create purchase orders for each supplier as draft for admin to confirm
+            foreach ($productsBySupplier as $supplierId => $items) {
+                if (empty($items)) continue;
+
+                // Calculate total amount
+                $totalAmount = 0.0;
+                foreach ($items as $item) {
+                    $totalAmount += $item['quantity'] * $item['cost_price'];
+                }
+
+                // Create purchase order as draft with paid amount = cost_price * quantity
+                DB::query(
+                    'INSERT INTO purchase_orders (shop_id, supplier_id, status, total_amount, paid_amount, due_amount, payment_basis, notes, order_date) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
+                    [
+                        $shopId,
+                        $supplierId,
+                        'draft',
+                        $totalAmount,
+                        $totalAmount, // Paid = Cost Price * Stock Quantity
+                        0.00, // No due amount since fully paid
+                        'cash', // Cash payment basis since fully paid
+                        'Auto-generated from CSV bulk upload - pending confirmation',
+                    ]
+                );
+                $poId = DB::lastInsertId();
+
+                // Insert PO items
+                foreach ($items as $item) {
+                    $subtotal = $item['quantity'] * $item['cost_price'];
+                    DB::query(
+                        'INSERT INTO purchase_order_items (purchase_order_id, shop_id, product_id, quantity_ordered, quantity_received, cost_price, selling_price, subtotal, expiry_date) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [
+                            $poId,
+                            $shopId,
+                            $item['product_id'],
+                            $item['quantity'],
+                            0, // quantity_received starts at 0 for draft PO
+                            $item['cost_price'],
+                            $item['selling_price'],
+                            $subtotal,
+                            $item['expiry_date']
+                        ]
+                    );
+                }
+                // Note: total_spent will be updated when admin confirms/receives the PO
+            }
+
+            // Cost logs will be created when PO is received (to avoid duplicates)
 
             DB::commit();
 

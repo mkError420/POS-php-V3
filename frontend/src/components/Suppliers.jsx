@@ -647,7 +647,7 @@ export default function Suppliers() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ payment_amount: parseFloat(poPaymentAmount) })
+        body: JSON.stringify({ amount: parseFloat(poPaymentAmount) })
       });
       const resData = await response.json();
       if (!response.ok) throw new Error(resData.error || 'Failed to record payment.');
@@ -2985,7 +2985,7 @@ export default function Suppliers() {
                 </div>
               )}
               <div className="text-right text-sm font-bold text-slate-700 md:ml-auto self-end">
-                Total Order Value: <span className="text-lg font-black text-slate-800">{formatCurrency(selectedPo.total_amount)}</span>
+                Total Order Value: <span className="text-lg font-black text-slate-800">{formatCurrency(selectedPo.items.reduce((sum, item) => sum + ((item.quantity_ordered !== undefined ? item.quantity_ordered : item.quantity) * (item.cost_price !== undefined ? item.cost_price : item.unit_price)), 0))}</span>
               </div>
             </div>
           </div>

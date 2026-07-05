@@ -383,12 +383,9 @@ class SupplierController {
             // Insert items and calculate total amount
             $totalAmount = self::processAndInsertPoItems($poId, $shopId, $supplierId, $items);
 
+            // Paid amount = Cost Price * Stock Quantity (total_amount)
+            $paidAmount = $totalAmount;
             $dueAmount = 0.00;
-            if ($paymentBasis === 'credit') {
-                $dueAmount = max(0.00, $totalAmount - (float)$paidAmount);
-            } else {
-                $paidAmount = $totalAmount;
-            }
 
             // Update main PO with correct totals
             DB::query(
@@ -634,6 +631,15 @@ class SupplierController {
                     );
                 }
 
+                // Update supplier total_spent when PO is received (if column exists)
+                $columnCheck = DB::query("SHOW COLUMNS FROM suppliers LIKE 'total_spent'");
+                if ($columnCheck->fetch() !== false) {
+                    DB::query(
+                        'UPDATE suppliers SET total_spent = total_spent + ? WHERE id = ? AND shop_id = ?',
+                        [(float)$po['total_amount'], $po['supplier_id'], $shopId]
+                    );
+                }
+
                 foreach ($items as $item) {
                     $productId = (int)$item['product_id'];
                     $qtyReceived = (int)$item['quantity_received'];
@@ -701,7 +707,7 @@ class SupplierController {
             DB::beginTransaction();
 
             $stmt = DB::query(
-                'SELECT status, supplier_id, payment_basis, due_amount FROM purchase_orders WHERE id = ? AND shop_id = ?',
+                'SELECT status, supplier_id, payment_basis, due_amount, total_amount FROM purchase_orders WHERE id = ? AND shop_id = ?',
                 [$poId, $shopId]
             );
             $po = $stmt->fetch();
@@ -737,6 +743,17 @@ class SupplierController {
                     'UPDATE suppliers SET due_balance = GREATEST(due_balance - ?, 0) WHERE id = ? AND shop_id = ?',
                     [(float)$po['due_amount'], $po['supplier_id'], $shopId]
                 );
+            }
+
+            // Revert supplier total_spent if PO was received (if column exists)
+            if ($poStatus === 'received') {
+                $columnCheck = DB::query("SHOW COLUMNS FROM suppliers LIKE 'total_spent'");
+                if ($columnCheck->fetch() !== false) {
+                    DB::query(
+                        'UPDATE suppliers SET total_spent = GREATEST(total_spent - ?, 0) WHERE id = ? AND shop_id = ?',
+                        [(float)$po['total_amount'], $po['supplier_id'], $shopId]
+                    );
+                }
             }
 
             DB::query('DELETE FROM purchase_orders WHERE id = ? AND shop_id = ?', [$poId, $shopId]);
@@ -838,11 +855,22 @@ class SupplierController {
         $shopId = Auth::$shopId;
 
         try {
-            // Supplier main profile
-            $stmt = DB::query(
-                'SELECT id, name, contact_name, email, phone, due_balance, created_at FROM suppliers WHERE id = ? AND shop_id = ?',
-                [$supplierId, $shopId]
-            );
+            // Check if total_spent column exists
+            $columnCheck = DB::query("SHOW COLUMNS FROM suppliers LIKE 'total_spent'");
+            $hasTotalSpent = $columnCheck->fetch() !== false;
+
+            // Supplier main profile - backward compatible query
+            if ($hasTotalSpent) {
+                $stmt = DB::query(
+                    'SELECT id, name, contact_name, email, phone, due_balance, total_spent, created_at FROM suppliers WHERE id = ? AND shop_id = ?',
+                    [$supplierId, $shopId]
+                );
+            } else {
+                $stmt = DB::query(
+                    'SELECT id, name, contact_name, email, phone, due_balance, created_at FROM suppliers WHERE id = ? AND shop_id = ?',
+                    [$supplierId, $shopId]
+                );
+            }
             $supplier = $stmt->fetch();
 
             if (!$supplier) {
@@ -850,7 +878,17 @@ class SupplierController {
             }
 
             $supplier['id'] = (int)$supplier['id'];
-            $supplier['due_balance'] = (float)$supplier['due_balance'];
+            $supplier['due_balance'] = isset($supplier['due_balance']) ? (float)$supplier['due_balance'] : 0.00;
+
+            // Check if total_spent column exists
+            $columnCheck = DB::query("SHOW COLUMNS FROM suppliers LIKE 'total_spent'");
+            $hasTotalSpentColumn = $columnCheck->fetch() !== false;
+
+            if ($hasTotalSpentColumn) {
+                $supplier['total_spent'] = isset($supplier['total_spent']) ? (float)$supplier['total_spent'] : 0.00;
+            } else {
+                $supplier['total_spent'] = 0.00; // Will be calculated from POs below
+            }
 
             // Purchase orders list
             $stmt = DB::query(
@@ -862,7 +900,18 @@ class SupplierController {
             );
             $pos = $stmt->fetchAll();
 
+            // Calculate total_spent dynamically from received POs if column doesn't exist
             $totalSpent = 0.0;
+            if (!$hasTotalSpentColumn) {
+                foreach ($pos as $po) {
+                    if ($po['status'] === 'received') {
+                        $totalSpent += (float)$po['total_amount'];
+                    }
+                }
+                $supplier['total_spent'] = $totalSpent;
+            } else {
+                $totalSpent = (float)$supplier['total_spent'];
+            }
             $poStats = [
                 'received' => 0,
                 'draft' => 0,
@@ -875,10 +924,6 @@ class SupplierController {
                 $po['total_amount'] = (float)$po['total_amount'];
                 $po['paid_amount'] = (float)$po['paid_amount'];
                 $po['due_amount'] = (float)$po['due_amount'];
-
-                if ($po['status'] === 'received') {
-                    $totalSpent += $po['total_amount'];
-                }
 
                 $status = $po['status'];
                 if (isset($poStats[$status])) {
@@ -1034,10 +1079,10 @@ class SupplierController {
 
         $poId = (int)$id;
         $shopId = Auth::$shopId;
-        $amount = (float)($requestData['amount'] ?? 0);
+        $amount = isset($requestData['amount']) ? (float)$requestData['amount'] : 0;
 
         if ($amount <= 0) {
-            Auth::jsonError('Please provide a valid payment amount.', 400);
+            Auth::jsonError('Please provide a valid payment amount (must be greater than 0).', 400);
         }
 
         try {
