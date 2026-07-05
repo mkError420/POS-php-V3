@@ -105,7 +105,11 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/products?search=${encodeURIComponent(searchTerm)}`, {
+      const url = searchTerm 
+        ? `${API_BASE_URL}/products?search=${encodeURIComponent(searchTerm)}`
+        : `${API_BASE_URL}/products?latest=10`;
+      
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

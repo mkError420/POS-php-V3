@@ -41,7 +41,12 @@ class ProductController {
                 $sql .= " AND p.expiry_date IS NOT NULL AND p.expiry_date <= DATE_ADD(CURRENT_DATE(), INTERVAL 30 DAY)";
             }
 
-            $sql .= " ORDER BY p.name ASC";
+            $latest = $_GET['latest'] ?? null;
+            if ($latest !== null) {
+                $sql .= " ORDER BY p.created_at DESC, p.id DESC LIMIT " . (int)$latest;
+            } else {
+                $sql .= " ORDER BY p.name ASC";
+            }
 
             $stmt = DB::query($sql, $params);
             $products = $stmt->fetchAll();
