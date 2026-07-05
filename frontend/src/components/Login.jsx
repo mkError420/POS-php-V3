@@ -149,7 +149,7 @@ export default function Login({ onLoginSuccess }) {
               id="login-submit-btn"
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-slate-600 hover:bg-indigo-500 disabled:bg-slate-600/50 disabled:cursor-not-allowed text-white font-semibold rounded-xl py-3 text-sm transition-all duration-200 shadow-lg shadow-indigo-600/30 hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:translate-y-0"
+              className="w-full flex items-center justify-center gap-2 bg-gray-500 hover:bg-gray-500 disabled:bg-gray-500/50 disabled:cursor-not-allowed text-white font-semibold rounded-xl py-3 text-sm transition-all duration-200 shadow-lg shadow-indigo-600/30 hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:translate-y-0"
             >
               {loading ? (
                 <>
@@ -180,30 +180,30 @@ export default function Login({ onLoginSuccess }) {
                 className="flex items-center gap-3 w-full text-left bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl px-3 py-2.5 transition-colors group"
               >
                 <span className="text-xs font-bold bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded-full shrink-0">SUPER ADMIN</span>
-                <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors truncate">mk.rabbani.cse@gmail.com ****(Rest..)</span>
+                <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors truncate">Restricted!!!</span>
               </button>
               <button
                 type="button"
                 onClick={() => { setEmail('alice@boutique.com'); setPassword('alice123'); }}
-                className="flex items-center gap-3 w-full text-left bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl px-3 py-2.5 transition-colors group"
+                className="flex items-center gap-3 w-full text-left bg-gray-500/10 hover:bg-gray-500/20 border border-gray-500/20 rounded-xl px-3 py-2.5 transition-colors group"
               >
-                <span className="text-xs font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full shrink-0">SHOP ADMIN</span>
+                <span className="text-xs font-bold bg-gray-500/20 text-gray-400 px-2 py-0.5 rounded-full shrink-0">SHOP ADMIN</span>
                 <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors truncate">alice@boutique.com · alice123</span>
               </button>
               <button
                 type="button"
                 onClick={() => { setEmail('admin@lakeside.com'); setPassword('lakeside123'); }}
-                className="flex items-center gap-3 w-full text-left bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl px-3 py-2.5 transition-colors group"
+                className="flex items-center gap-3 w-full text-left bg-gray-500/10 hover:bg-gray-500/20 border border-gray-500/20 rounded-xl px-3 py-2.5 transition-colors group"
               >
-                <span className="text-xs font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full shrink-0">SHOP ADMIN</span>
+                <span className="text-xs font-bold bg-gray-500/20 text-gray-400 px-2 py-0.5 rounded-full shrink-0">SHOP ADMIN</span>
                 <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors truncate">admin@lakeside.com · lakeside123</span>
               </button>
               <button
                 type="button"
                 onClick={() => { setEmail('staff1@boutique.com'); setPassword('staff123'); }}
-                className="flex items-center gap-3 w-full text-left bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-xl px-3 py-2.5 transition-colors group"
+                className="flex items-center gap-3 w-full text-left bg-gray-500/10 hover:bg-gray-500/20 border border-gray-500/20 rounded-xl px-3 py-2.5 transition-colors group"
               >
-                <span className="text-xs font-bold bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full shrink-0">SHOP STAFF</span>
+                <span className="text-xs font-bold bg-gray-500/20 text-gray-400 px-2 py-0.5 rounded-full shrink-0">SHOP STAFF</span>
                 <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors truncate">staff1@boutique.com · staff123</span>
               </button>
             </div>

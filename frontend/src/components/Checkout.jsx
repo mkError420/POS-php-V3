@@ -2034,15 +2034,15 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
       <div className="flex flex-col h-full overflow-hidden">
 
         {/* Customer & Cart items header */}
-        <div className="p-4 border-b border-slate-100 bg-slate-50 space-y-3">
+        <div className="p-2.5 border-b border-slate-100 bg-slate-50 space-y-2">
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
               Select Customer
             </label>
             <select
               value={activeTab.selectedCustomerId}
               onChange={(e) => updateActiveTabState('selectedCustomerId', e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full bg-white border border-slate-200 rounded-lg p-1.5 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
               <option value="">Walk-in Customer</option>
               {customers.map(c => {
@@ -2057,7 +2057,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
             </select>
           </div>
 
-          <div className="border-t border-slate-200/60 pt-3 space-y-2.5">
+          <div className="border-t border-slate-200/60 pt-2 space-y-2">
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               Customer Details
             </h4>
@@ -2175,18 +2175,18 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
                 );
               })()}
 
-            <div className="grid grid-cols-1 gap-2">
-              <div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <div className="col-span-1">
                 <input
                   type="text"
                   placeholder="Customer Name"
                   value={activeTab.customerName}
                   onChange={(e) => updateActiveTabState('customerName', e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg p-2 px-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full bg-white border border-slate-200 rounded-lg p-1.5 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
 
-              <div className="relative">
+              <div className="col-span-1 relative">
                 <input
                   type="text"
                   placeholder="Phone Number"
@@ -2197,7 +2197,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
                       updateActiveTabState('selectedCustomerId', '');
                     }
                   }}
-                  className="w-full bg-white border border-slate-200 rounded-lg p-2 px-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full bg-white border border-slate-200 rounded-lg p-1.5 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
 
                 {/* Autocomplete Customer Suggestions */}
@@ -2226,13 +2226,13 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
                 })()}
               </div>
 
-              <div>
+              <div className="col-span-2">
                 <input
                   type="text"
                   placeholder="Address"
                   value={activeTab.customerAddress}
                   onChange={(e) => updateActiveTabState('customerAddress', e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg p-2 px-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full bg-white border border-slate-200 rounded-lg p-1.5 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
             </div>
@@ -2326,104 +2326,126 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
         </div>
 
         {/* Calculation summary + Pay trigger button */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50 space-y-3 shrink-0 ">
+        <div className="p-2.5 border-t border-slate-100 bg-slate-50 space-y-2 shrink-0">
           <div className="space-y-1.5 text-xs text-slate-600">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
-              <span className="font-semibold">৳{getSubtotal().toFixed(2)}</span>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+              <div className="flex justify-between">
+                <span>Subtotal:</span>
+                <span className="font-semibold">৳{getSubtotal().toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tax ({(taxRate * 100).toString()}%):</span>
+                <span className="font-semibold">৳{getTax().toFixed(2)}</span>
+              </div>
+              
+              {/* Discount Manual Inputs */}
+              <div className="flex justify-between items-center col-span-1">
+                <span>Discount (%):</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={activeTab.discountPercent}
+                  onChange={(e) => updateActiveTabState('discountPercent', Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                  className="w-14 border border-slate-200 rounded px-1 py-0.5 text-right font-medium text-slate-700 bg-white text-xs"
+                />
+              </div>
+
+              {/* Final Total */}
+              <div className="flex justify-between items-center col-span-1 border-l border-slate-200/60 pl-4">
+                <span className="font-extrabold text-slate-800">Total:</span>
+                <span className="font-extrabold text-indigo-650">৳{getFinalTotal().toFixed(2)}</span>
+              </div>
             </div>
-            
-            {/* Discount Manual Inputs */}
-            <div className="flex justify-between items-center">
-              <span>Discount (%)</span>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                value={activeTab.discountPercent}
-                onChange={(e) => updateActiveTabState('discountPercent', Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
-                className="w-20 border border-slate-200 rounded px-1.5 py-0.5 text-right font-medium text-slate-700 bg-white"
-              />
-            </div>
+
             {getDiscountAmount() > 0 && (
-              <div className="flex justify-between text-xs text-rose-500">
-                <span>Discounted Amount</span>
+              <div className="flex justify-between text-[11px] text-rose-500">
+                <span>Discounted Amt:</span>
                 <span>-৳{getDiscountAmount().toFixed(2)}</span>
               </div>
             )}
 
             {getPointsDiscount() > 0 && (
-              <div className="flex justify-between text-xs text-emerald-600 font-medium">
-                <span>Loyalty Cashback Discount</span>
+              <div className="flex justify-between text-[11px] text-emerald-600 font-medium">
+                <span>Loyalty Cashback:</span>
                 <span>-৳{getPointsDiscount().toFixed(2)}</span>
               </div>
             )}
 
-            <div className="flex justify-between">
-              <span>Tax ({(taxRate * 100).toString()}%)</span>
-              <span className="font-semibold">৳{getTax().toFixed(2)}</span>
+            {parseFloat(activeTab?.reduceDueAmount || 0) > 0 && (
+              <div className="flex justify-between items-center bg-rose-50 border border-rose-100 rounded-lg p-2 text-rose-800 font-medium text-[11px]">
+                <span className="flex items-center">
+                  <svg className="w-3 h-3 mr-1 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Due Balance Payment
+                </span>
+                <div className="flex items-center space-x-1">
+                  <span className="font-bold">৳{parseFloat(activeTab?.reduceDueAmount).toFixed(2)}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateActiveTabState('reduceDueAmount', 0);
+                      updateActiveTabState('isPaidTouched', false);
+                    }}
+                    className="text-rose-455 hover:text-rose-600 font-extrabold text-sm px-0.5"
+                    title="Remove Due Payment"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Amount Paid input & Payment Method split row */}
+            <div className="grid grid-cols-2 gap-2 border-t border-slate-200/60 pt-2">
+              <div className="flex justify-between items-center">
+                <span className="font-semibold text-[11px] text-slate-700">Amt Paid:</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={activeTab.paidAmount}
+                  onChange={(e) => {
+                    updateActiveTabState('paidAmount', e.target.value);
+                    updateActiveTabState('isPaidTouched', true);
+                  }}
+                  placeholder={getFinalTotal().toFixed(2)}
+                  className="w-16 border border-slate-200 rounded px-1.5 py-0.5 text-right font-semibold text-xs text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="flex items-center space-x-1 justify-end">
+                {['cash', 'card', 'mobile_pay'].map((method) => (
+                  <button
+                    key={method}
+                    type="button"
+                    onClick={() => updateActiveTabState('paymentMethod', method)}
+                    className={`py-1 px-1.5 rounded text-[10px] font-semibold border text-center transition-all ${
+                      activeTab?.paymentMethod === method
+                        ? 'bg-slate-600 border-indigo-650 text-white shadow-sm'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {method === 'mobile_pay' ? 'Mobile' : method.charAt(0).toUpperCase() + method.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
 
-{parseFloat(activeTab?.reduceDueAmount || 0) > 0 && (
-               <div className="flex justify-between items-center bg-rose-50 border border-rose-100 rounded-lg p-2.5 text-rose-800 font-medium">
-                 <span className="flex items-center">
-                   <svg className="w-3.5 h-3.5 mr-1 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                   </svg>
-                   Due Balance Payment
-                 </span>
-                 <div className="flex items-center space-x-1.5">
-                   <span className="font-bold">৳{parseFloat(activeTab?.reduceDueAmount).toFixed(2)}</span>
-                   <button
-                     type="button"
-                     onClick={() => {
-                       updateActiveTabState('reduceDueAmount', 0);
-                       updateActiveTabState('isPaidTouched', false);
-                     }}
-                     className="text-rose-400 hover:text-rose-600 font-extrabold text-sm px-1"
-                     title="Remove Due Payment"
-                   >
-                     ×
-                   </button>
-                 </div>
-               </div>
-             )}
-
-            <div className="flex justify-between text-base font-extrabold text-slate-800 border-t border-slate-200/60 pt-2">
-              <span>Final Total</span>
-              <span className="text-indigo-600">৳{getFinalTotal().toFixed(2)}</span>
-            </div>
-
-            {/* Amount Paid input */}
-            <div className="flex justify-between items-center border-t border-slate-200/60 pt-2">
-              <span className="font-semibold">Amount Paid</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={activeTab.paidAmount}
-                onChange={(e) => {
-                  updateActiveTabState('paidAmount', e.target.value);
-                  updateActiveTabState('isPaidTouched', true);
-                }}
-                placeholder={getFinalTotal().toFixed(2)}
-                className="w-24 border border-slate-200 rounded px-1.5 py-0.5 text-right font-semibold text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
-            </div>
-
-              {activeTab && (() => {
+            {activeTab && (() => {
               const finalTotal = getFinalTotal();
               const parsedPaid = activeTab.paidAmount !== '' ? parseFloat(activeTab.paidAmount) : finalTotal;
               const dueAmount = finalTotal - parsedPaid;
               if (dueAmount > 0) {
                 return (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 mt-2 space-y-1 text-xs text-amber-800">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mt-1 space-y-0.5 text-[11px] text-amber-800">
                     <div className="flex justify-between">
                       <span className="font-medium">Outstanding Due:</span>
                       <span className="font-bold">৳{dueAmount.toFixed(2)}</span>
                     </div>
-                    <div className="text-[10px] text-amber-600 font-semibold text-right">
+                    <div className="text-[9px] text-amber-600 font-semibold text-right">
                       * Customer Profile Required
                     </div>
                   </div>
@@ -2433,54 +2455,31 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
             })()}
           </div>
 
-          {/* Payment Method Selector */}
-          <div className="pt-2">
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-              Payment Method
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {['cash', 'card', 'mobile_pay'].map((method) => (
-                <button
-                  key={method}
-                  type="button"
-                  onClick={() => updateActiveTabState('paymentMethod', method)}
-                  className={`py-1.5 px-2 rounded-lg text-xs font-semibold border text-center transition-all ${
-                    activeTab?.paymentMethod === method
-                      ? 'bg-slate-600 border-indigo-600 text-white shadow-sm'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  {method === 'mobile_pay' ? 'Mobile' : method.charAt(0).toUpperCase() + method.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Action Triggers */}
-          <div className="grid grid-cols-3 gap-2 mt-4">
+          <div className="grid grid-cols-3 gap-1.5 mt-2">
             <button
               type="button"
               onClick={() => { if (activeTab?.cart?.length > 0) setShowHoldBillModal(true); }}
               disabled={activeTab?.cart?.length === 0}
-              className="col-span-1 bg-amber-50 hover:bg-amber-100 disabled:bg-slate-100 disabled:text-slate-400 text-amber-700 border border-amber-200 disabled:border-slate-200 font-bold py-3 px-2 rounded-xl transition-colors flex justify-center items-center space-x-1.5"
+              className="col-span-1 bg-amber-50 hover:bg-amber-100 disabled:bg-slate-100 disabled:text-slate-400 text-amber-700 border border-amber-200 disabled:border-slate-200 font-bold py-2 px-1.5 rounded-xl transition-colors flex justify-center items-center space-x-1"
               title="Hold Cart"
             >
-              <svg className="w-4 h-4 text-amber-600 disabled:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 text-amber-600 disabled:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-xs">Hold Bill</span>
+              <span className="text-xs">Hold</span>
             </button>
             <button
               onClick={handleCheckout}
               disabled={activeTab?.cart?.length === 0 || submitting}
-              className="col-span-2 bg-slate-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-colors flex justify-center items-center space-x-2"
+              className="col-span-2 bg-slate-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-bold py-2 px-3 rounded-xl shadow-md transition-colors flex justify-center items-center space-x-1.5"
             >
               {submitting ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
               ) : (
                 <>
-                  <span>Complete Checkout</span>
-                  <span className="font-extrabold bg-indigo-500 px-2 py-0.5 rounded text-xs">
+                  <span className="text-xs">Complete Checkout</span>
+                  <span className="font-extrabold bg-indigo-500/80 px-1.5 py-0.5 rounded text-[10px]">
                     ৳{getFinalTotal().toFixed(2)}
                   </span>
                 </>
