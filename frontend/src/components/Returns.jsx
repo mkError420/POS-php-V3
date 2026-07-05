@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import API_BASE_URL from '../config';
 
 export default function Returns() {
@@ -32,6 +32,9 @@ export default function Returns() {
     deduct_from_due: false
   });
   const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const customerDropdownRef = useRef(null);
 
   // Helper states for dynamic checkout details
   const [saleLoading, setSaleLoading] = useState(false);
@@ -194,20 +197,60 @@ export default function Returns() {
     }));
   }, [formData.product_id, formData.quantity, selectedSaleDetails, products]);
 
-  // Update customer due balance when customer_id changes
+  // Update customer due balance and search term when customer_id changes
   useEffect(() => {
     if (formData.customer_id) {
       const cust = customers.find(c => String(c.id) === String(formData.customer_id));
       if (cust) {
         setCustomerDueBalance(parseFloat(cust.due_balance || 0));
+        setCustomerSearchTerm(`${cust.name} (${cust.phone || 'No phone'})`);
       } else {
         setCustomerDueBalance(0);
       }
     } else {
       setCustomerDueBalance(0);
+      setCustomerSearchTerm('');
       setFormData(prev => ({ ...prev, deduct_from_due: false }));
     }
   }, [formData.customer_id, customers]);
+
+  // Handle click outside to close customer search dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target)) {
+        setShowCustomerDropdown(false);
+        // If they clicked outside and have a customer selected, restore its display name
+        if (formData.customer_id) {
+          const selected = customers.find(c => String(c.id) === String(formData.customer_id));
+          if (selected) {
+            setCustomerSearchTerm(`${selected.name} (${selected.phone || 'No phone'})`);
+          }
+        } else {
+          setCustomerSearchTerm('');
+        }
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [formData.customer_id, customers]);
+
+  const getFilteredCustomers = () => {
+    // If the search term exactly matches the selected customer's label, show all customers
+    if (formData.customer_id) {
+      const selected = customers.find(c => String(c.id) === String(formData.customer_id));
+      if (selected && customerSearchTerm === `${selected.name} (${selected.phone || 'No phone'})`) {
+        return customers;
+      }
+    }
+    if (!customerSearchTerm) return customers;
+    const lowerTerm = customerSearchTerm.toLowerCase();
+    return customers.filter(c => 
+      c.name.toLowerCase().includes(lowerTerm) || 
+      (c.phone && c.phone.toLowerCase().includes(lowerTerm))
+    );
+  };
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -312,6 +355,8 @@ export default function Returns() {
     setSelectedProductDetails(null);
     setCustomerDueBalance(0);
     setProductSearchTerm('');
+    setCustomerSearchTerm('');
+    setShowCustomerDropdown(false);
   };
 
   const exportReturnsToCSV = () => {
@@ -757,20 +802,70 @@ export default function Returns() {
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
                   Customer (Optional)
                 </label>
-                <select
-                  name="customer_id"
-                  value={formData.customer_id}
-                  onChange={handleInputChange}
-                  disabled={!!selectedSaleDetails?.customer_id}
-                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-1 focus:ring-indigo-500 outline-none bg-white text-slate-700 disabled:bg-slate-100"
-                >
-                  <option value="">-- Select customer (Walk-in by default) --</option>
-                  {customers.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.phone || 'No phone'}) {parseFloat(c.due_balance) > 0 ? `| Due: ${formatCurrency(c.due_balance)}` : ''}
-                    </option>
-                  ))}
-                </select>
+                {selectedSaleDetails?.customer_id ? (
+                  <input
+                    type="text"
+                    value={customerSearchTerm}
+                    disabled
+                    className="w-full border border-slate-200 bg-slate-50 rounded-lg p-2.5 text-sm outline-none text-slate-500 font-medium"
+                  />
+                ) : (
+                  <div className="relative" ref={customerDropdownRef}>
+                    <input
+                      type="text"
+                      value={customerSearchTerm}
+                      onFocus={() => setShowCustomerDropdown(true)}
+                      onChange={(e) => {
+                        setCustomerSearchTerm(e.target.value);
+                        setShowCustomerDropdown(true);
+                        if (formData.customer_id) {
+                          setFormData(prev => ({ ...prev, customer_id: '' }));
+                        }
+                      }}
+                      placeholder="Type to search customer..."
+                      className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-1 focus:ring-indigo-500 outline-none bg-white text-slate-700 font-medium"
+                    />
+                    {showCustomerDropdown && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                        <div
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, customer_id: '' }));
+                            setCustomerSearchTerm('');
+                            setShowCustomerDropdown(false);
+                          }}
+                          className="p-2.5 hover:bg-indigo-50 cursor-pointer text-xs text-slate-500 italic border-b border-slate-100"
+                        >
+                          -- Select customer (Walk-in by default) --
+                        </div>
+                        {getFilteredCustomers().length === 0 ? (
+                          <div className="p-3 text-sm text-slate-400 text-center">No customers found</div>
+                        ) : (
+                          getFilteredCustomers().map(c => (
+                            <div
+                              key={c.id}
+                              onClick={() => {
+                                setFormData(prev => ({ ...prev, customer_id: String(c.id) }));
+                                setCustomerSearchTerm(`${c.name} (${c.phone || 'No phone'})`);
+                                setShowCustomerDropdown(false);
+                              }}
+                              className="p-2.5 hover:bg-indigo-50 cursor-pointer text-xs flex justify-between items-center transition-colors border-b border-slate-100 last:border-0"
+                            >
+                              <div>
+                                <div className="font-semibold text-slate-800">{c.name}</div>
+                                <div className="text-slate-400">Phone: {c.phone || 'No phone'}</div>
+                              </div>
+                              {parseFloat(c.due_balance || 0) > 0 && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-rose-100 text-rose-800">
+                                  Due: {formatCurrency(c.due_balance)}
+                                </span>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Qty & Auto-Calculated Refund */}

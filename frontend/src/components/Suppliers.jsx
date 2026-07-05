@@ -105,8 +105,8 @@ export default function Suppliers() {
       unit: poFormData.unit
     } : {
       product_id: parseInt(poFormData.product_id),
-      name: productSearch.split(' (')[0],
-      sku: productSearch.match(/\(([^)]+)\)/)?.[1] || '',
+      name: poFormData.name || productSearch.split(' (')[0],
+      sku: poFormData.sku || productSearch.match(/\(([^)]+)\)/)?.[1] || '',
       quantity_ordered: parseInt(poFormData.quantity_ordered),
       cost_price: parseFloat(poFormData.cost_price || 0),
       selling_price: parseFloat(poFormData.selling_price || 0),
@@ -570,16 +570,20 @@ export default function Suppliers() {
   // OPEN RECEIVE MODAL
   const openReceiveModal = (po) => {
     setSelectedPo(po);
-    setReceiveItems(po.items.map(item => ({
-      product_id: item.product_id,
-      product_name: item.product_name,
-      sku: item.product_sku,
-      quantity_ordered: item.quantity_ordered,
-      quantity_received: item.quantity_ordered, // Default match ordered qty
-      cost_price: parseFloat(item.cost_price),
-      selling_price: parseFloat(item.selling_price || 0),
-      expiry_date: item.expiry_date ? item.expiry_date.split('T')[0] : ''
-    })));
+    setReceiveItems(po.items.map(item => {
+      const qtyOrdered = item.quantity_ordered !== undefined ? item.quantity_ordered : (item.quantity !== undefined ? item.quantity : 0);
+      const costPrice = item.cost_price !== undefined ? item.cost_price : (item.unit_price !== undefined ? item.unit_price : 0);
+      return {
+        product_id: item.product_id,
+        product_name: item.product_name,
+        sku: item.product_sku,
+        quantity_ordered: qtyOrdered,
+        quantity_received: qtyOrdered, // Default match ordered qty
+        cost_price: parseFloat(costPrice),
+        selling_price: parseFloat(item.selling_price || 0),
+        expiry_date: item.expiry_date ? item.expiry_date.split('T')[0] : ''
+      };
+    }));
     setReceiveNotes('');
     setShowReceiveModal(true);
   };
@@ -2737,9 +2741,9 @@ export default function Suppliers() {
                       <tr key={item.id}>
                         <td className="p-3 font-mono font-bold text-slate-500">{item.product_sku}</td>
                         <td className="p-3 font-semibold text-slate-800">{item.product_name}</td>
-                        <td className="p-3 text-slate-650">{formatCurrency(item.cost_price)}</td>
+                        <td className="p-3 text-slate-650">{formatCurrency(item.cost_price !== undefined ? item.cost_price : item.unit_price)}</td>
                         <td className="p-3 text-slate-650">{formatCurrency(item.selling_price || 0)}</td>
-                        <td className="p-3 text-slate-700 font-semibold">{item.quantity_ordered}</td>
+                        <td className="p-3 text-slate-700 font-semibold">{item.quantity_ordered !== undefined ? item.quantity_ordered : item.quantity}</td>
                         <td className="p-3 text-slate-750">
                           {selectedPo.status === 'received' ? (
                             <span className="text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
@@ -2759,7 +2763,7 @@ export default function Suppliers() {
                           )}
                         </td>
                         <td className="p-3 text-right font-extrabold text-slate-800">
-                          {formatCurrency(item.quantity_ordered * item.cost_price)}
+                          {formatCurrency((item.quantity_ordered !== undefined ? item.quantity_ordered : item.quantity) * (item.cost_price !== undefined ? item.cost_price : item.unit_price))}
                         </td>
                         {['draft', 'ordered'].includes(selectedPo.status) && (
                           <td className="p-3 text-center">

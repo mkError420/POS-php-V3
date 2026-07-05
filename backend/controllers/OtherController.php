@@ -327,6 +327,7 @@ class OtherController {
                 $r['quantity'] = (int)$r['quantity'];
                 $r['refund_amount'] = (float)$r['refund_amount'];
                 $r['deduct_from_due'] = (int)$r['deduct_from_due'];
+                $r['amount_deducted_from_due'] = isset($r['amount_deducted_from_due']) ? (float)$r['amount_deducted_from_due'] : 0.00;
             }
 
             header('Content-Type: application/json');
@@ -367,12 +368,29 @@ class OtherController {
                 Auth::jsonError('Product not found.', 404);
             }
 
-            // If deducting from customer due balance
-            if ($deductFromDue === 1 && $customerId) {
+            $deductAmount = 0.00;
+            if ($customerId) {
+                // Fetch customer's current due balance
+                $cStmt = DB::query('SELECT due_balance FROM customers WHERE id = ? AND shop_id = ?', [$customerId, $shopId]);
+                $customer = $cStmt->fetch();
+                if ($customer) {
+                    $dueBalance = (float)$customer['due_balance'];
+                    if ($deductFromDue === 1) {
+                        // User explicitly selected to deduct from due balance
+                        $deductAmount = $refundAmount;
+                    } elseif ($dueBalance > 0 && $refundMethod === 'cash') {
+                        // Customer has due balance and wants to refund with cash, adjust due balance first
+                        $deductAmount = min($refundAmount, $dueBalance);
+                    }
+                }
+            }
+
+            if ($deductAmount > 0) {
                 DB::query(
                     'UPDATE customers SET due_balance = GREATEST(due_balance - ?, 0) WHERE id = ? AND shop_id = ?',
-                    [$refundAmount, $customerId, $shopId]
+                    [$deductAmount, $customerId, $shopId]
                 );
+                $deductFromDue = 1; // Mark that it was deducted
             }
 
             // Restore stock quantity
@@ -381,11 +399,34 @@ class OtherController {
                 [$quantity, $productId, $shopId]
             );
 
+            // Construct notes
+            $finalNotes = $notes;
+            if ($deductAmount > 0 && $deductFromDue === 1 && $refundMethod === 'cash') {
+                $cashReturned = $refundAmount - $deductAmount;
+                $noteMsg = sprintf(
+                    "Due balance adjusted: Deducted $%.2f from outstanding due balance. Remaining $%.2f refunded in cash.",
+                    $deductAmount,
+                    $cashReturned
+                );
+                $finalNotes = empty($notes) ? $noteMsg : $notes . " | " . $noteMsg;
+            }
+
             // Record return log
             DB::query(
-                'INSERT INTO customer_returns (shop_id, customer_id, sale_id, product_id, quantity, refund_amount, refund_method, notes, deduct_from_due) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [$shopId, $customerId ? (int)$customerId : null, $saleId ? (int)$saleId : null, $productId, $quantity, $refundAmount, $refundMethod, $notes, $deductFromDue]
+                'INSERT INTO customer_returns (shop_id, customer_id, sale_id, product_id, quantity, refund_amount, refund_method, notes, deduct_from_due, amount_deducted_from_due) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [
+                    $shopId, 
+                    $customerId ? (int)$customerId : null, 
+                    $saleId ? (int)$saleId : null, 
+                    $productId, 
+                    $quantity, 
+                    $refundAmount, 
+                    $refundMethod, 
+                    $finalNotes, 
+                    $deductFromDue, 
+                    $deductAmount
+                ]
             );
             $newId = DB::lastInsertId();
 
@@ -432,10 +473,13 @@ class OtherController {
 
             // Revert customer due balance if deducted
             if ((int)$ret['deduct_from_due'] === 1 && $ret['customer_id']) {
-                DB::query(
-                    'UPDATE customers SET due_balance = due_balance + ? WHERE id = ? AND shop_id = ?',
-                    [(float)$ret['refund_amount'], (int)$ret['customer_id'], $shopId]
-                );
+                $amountToRevert = isset($ret['amount_deducted_from_due']) ? (float)$ret['amount_deducted_from_due'] : (float)$ret['refund_amount'];
+                if ($amountToRevert > 0) {
+                    DB::query(
+                        'UPDATE customers SET due_balance = due_balance + ? WHERE id = ? AND shop_id = ?',
+                        [$amountToRevert, (int)$ret['customer_id'], $shopId]
+                    );
+                }
             }
 
             // Delete return log

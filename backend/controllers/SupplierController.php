@@ -275,6 +275,79 @@ class SupplierController {
         }
     }
 
+    private static function processAndInsertPoItems($poId, $shopId, $supplierId, $items) {
+        $normalizedItems = [];
+        foreach ($items as $item) {
+            $qty = isset($item['quantity']) ? (int)$item['quantity'] : (isset($item['quantity_ordered']) ? (int)$item['quantity_ordered'] : 0);
+            $costPrice = isset($item['cost_price']) ? (float)$item['cost_price'] : (isset($item['unit_price']) ? (float)$item['unit_price'] : 0.00);
+            $sellingPrice = isset($item['selling_price']) ? (float)$item['selling_price'] : 0.00;
+            $productId = isset($item['product_id']) ? (int)$item['product_id'] : null;
+            $isNew = isset($item['is_new']) ? (bool)$item['is_new'] : false;
+            $name = $item['name'] ?? '';
+            $sku = $item['sku'] ?? '';
+            $unit = $item['unit'] ?? 'piece';
+            $lowStock = $item['low_stock_threshold'] ?? 10;
+
+            $normalizedItems[] = [
+                'product_id' => $productId,
+                'quantity' => $qty,
+                'cost_price' => $costPrice,
+                'selling_price' => $sellingPrice,
+                'is_new' => $isNew,
+                'name' => $name,
+                'sku' => $sku,
+                'unit' => $unit,
+                'low_stock_threshold' => $lowStock
+            ];
+        }
+
+        $totalAmount = 0.00;
+        foreach ($normalizedItems as $item) {
+            $totalAmount += $item['quantity'] * $item['cost_price'];
+        }
+
+        foreach ($normalizedItems as $item) {
+            $productId = $item['product_id'];
+            
+            if (empty($productId) || $item['is_new']) {
+                // Check if product with this SKU already exists
+                $stmt = DB::query('SELECT id FROM products WHERE shop_id = ? AND sku = ?', [$shopId, $item['sku']]);
+                $existingProd = $stmt->fetch();
+                
+                if ($existingProd) {
+                    $productId = (int)$existingProd['id'];
+                } else {
+                    // Create the new product in the database with stock_quantity = 0
+                    DB::query(
+                        'INSERT INTO products (shop_id, name, sku, price, cost_price, stock_quantity, low_stock_threshold, supplier_id, unit) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [
+                            $shopId,
+                            $item['name'],
+                            $item['sku'],
+                            $item['selling_price'] > 0 ? $item['selling_price'] : $item['cost_price'],
+                            $item['cost_price'],
+                            0,
+                            (int)$item['low_stock_threshold'],
+                            $supplierId,
+                            $item['unit']
+                        ]
+                    );
+                    $productId = (int)DB::lastInsertId();
+                }
+            }
+
+            $subtotal = $item['quantity'] * $item['cost_price'];
+            DB::query(
+                'INSERT INTO purchase_order_items (purchase_order_id, shop_id, product_id, quantity_ordered, cost_price, selling_price, subtotal) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [$poId, $shopId, $productId, $item['quantity'], $item['cost_price'], $item['selling_price'], $subtotal]
+            );
+        }
+
+        return $totalAmount;
+    }
+
     public static function createPurchaseOrder($requestData) {
         Auth::authenticate();
         Auth::enforceTenant();
@@ -282,6 +355,7 @@ class SupplierController {
 
         $shopId = Auth::$shopId;
         $supplierId = $requestData['supplier_id'] ?? null;
+        $status = $requestData['status'] ?? 'draft';
         $notes = $requestData['notes'] ?? null;
         $paymentBasis = $requestData['payment_basis'] ?? 'cash';
         $paidAmount = $requestData['paid_amount'] ?? 0.00;
@@ -291,14 +365,23 @@ class SupplierController {
             Auth::jsonError('Supplier ID and ordering items are required.', 400);
         }
 
+        if (!in_array($status, ['draft', 'ordered', 'received', 'cancelled'])) {
+            Auth::jsonError('Invalid purchase order status.', 400);
+        }
+
         try {
             DB::beginTransaction();
 
-            // Calculate total amount
-            $totalAmount = 0.00;
-            foreach ($items as $item) {
-                $totalAmount += (int)$item['quantity'] * (float)$item['unit_price'];
-            }
+            // Insert PO with temporary total_amount = 0 (will update it after inserting items)
+            DB::query(
+                'INSERT INTO purchase_orders (shop_id, supplier_id, status, total_amount, paid_amount, due_amount, payment_basis, notes) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                [$shopId, $supplierId, $status, 0.00, 0.00, 0.00, $paymentBasis, $notes]
+            );
+            $poId = DB::lastInsertId();
+
+            // Insert items and calculate total amount
+            $totalAmount = self::processAndInsertPoItems($poId, $shopId, $supplierId, $items);
 
             $dueAmount = 0.00;
             if ($paymentBasis === 'credit') {
@@ -307,21 +390,17 @@ class SupplierController {
                 $paidAmount = $totalAmount;
             }
 
-            // Insert PO
+            // Update main PO with correct totals
             DB::query(
-                'INSERT INTO purchase_orders (shop_id, supplier_id, total_amount, paid_amount, due_amount, payment_basis, notes) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?)',
-                [$shopId, $supplierId, $totalAmount, $paidAmount, $dueAmount, $paymentBasis, $notes]
+                'UPDATE purchase_orders SET total_amount = ?, paid_amount = ?, due_amount = ? WHERE id = ? AND shop_id = ?',
+                [$totalAmount, $paidAmount, $dueAmount, $poId, $shopId]
             );
-            $poId = DB::lastInsertId();
 
-            // Insert items
-            foreach ($items as $item) {
-                $subtotal = (int)$item['quantity'] * (float)$item['unit_price'];
+            // Update supplier due balance if status is ordered, payment basis is credit, and due amount > 0
+            if ($status === 'ordered' && $paymentBasis === 'credit' && $dueAmount > 0) {
                 DB::query(
-                    'INSERT INTO purchase_order_items (purchase_order_id, shop_id, product_id, quantity, unit_price, subtotal) 
-                     VALUES (?, ?, ?, ?, ?, ?)',
-                    [$poId, $shopId, (int)$item['product_id'], (int)$item['quantity'], (float)$item['unit_price'], $subtotal]
+                    'UPDATE suppliers SET due_balance = due_balance + ? WHERE id = ? AND shop_id = ?',
+                    [$dueAmount, $supplierId, $shopId]
                 );
             }
 
@@ -337,7 +416,7 @@ class SupplierController {
         } catch (\Exception $e) {
             DB::rollBack();
             error_log('Create PO error: ' . $e->getMessage());
-            Auth::jsonError('Server error creating Purchase Order.', 500);
+            Auth::jsonError('Server error creating Purchase Order: ' . $e->getMessage(), 500);
         }
     }
 
@@ -385,10 +464,16 @@ class SupplierController {
                 $item['purchase_order_id'] = (int)$item['purchase_order_id'];
                 $item['shop_id'] = (int)$item['shop_id'];
                 $item['product_id'] = (int)$item['product_id'];
-                $item['quantity'] = (int)$item['quantity'];
-                $item['unit_price'] = (float)$item['unit_price'];
+                
+                // Handle rename of quantity to quantity_ordered
+                $qty = isset($item['quantity_ordered']) ? (int)$item['quantity_ordered'] : (isset($item['quantity']) ? (int)$item['quantity'] : 0);
+                $item['quantity_ordered'] = $qty;
+                $item['quantity'] = $qty;
+                
+                $item['cost_price'] = isset($item['cost_price']) ? (float)$item['cost_price'] : (isset($item['unit_price']) ? (float)$item['unit_price'] : 0.00);
                 $item['selling_price'] = $item['selling_price'] !== null ? (float)$item['selling_price'] : null;
-                $item['subtotal'] = (float)$item['subtotal'];
+                $item['subtotal'] = isset($item['subtotal']) ? (float)$item['subtotal'] : ($qty * $item['cost_price']);
+                $item['unit_price'] = $item['cost_price']; // Alias for backward compatibility
             }
 
             $po['items'] = $items;
@@ -415,8 +500,8 @@ class SupplierController {
         try {
             DB::beginTransaction();
 
-            // Verify status is draft
-            $stmt = DB::query('SELECT status FROM purchase_orders WHERE id = ? AND shop_id = ?', [$poId, $shopId]);
+            // Verify status is draft and retrieve supplier_id
+            $stmt = DB::query('SELECT status, supplier_id FROM purchase_orders WHERE id = ? AND shop_id = ?', [$poId, $shopId]);
             $po = $stmt->fetch();
 
             if (!$po) {
@@ -429,20 +514,13 @@ class SupplierController {
                 Auth::jsonError('Can only update Purchase Orders in draft status.', 400);
             }
 
+            $supplierId = (int)$po['supplier_id'];
+
             // Sync items (delete and re-insert)
             DB::query('DELETE FROM purchase_order_items WHERE purchase_order_id = ? AND shop_id = ?', [$poId, $shopId]);
 
-            $totalAmount = 0.00;
-            foreach ($items as $item) {
-                $subtotal = (int)$item['quantity'] * (float)$item['unit_price'];
-                $totalAmount += $subtotal;
-
-                DB::query(
-                    'INSERT INTO purchase_order_items (purchase_order_id, shop_id, product_id, quantity, unit_price, subtotal) 
-                     VALUES (?, ?, ?, ?, ?, ?)',
-                    [$poId, $shopId, (int)$item['product_id'], (int)$item['quantity'], (float)$item['unit_price'], $subtotal]
-                );
-            }
+            // Re-insert items and get total amount
+            $totalAmount = self::processAndInsertPoItems($poId, $shopId, $supplierId, $items);
 
             // Update main PO total
             DB::query(
@@ -727,7 +805,7 @@ class SupplierController {
 
             // Recompute PO total
             $stmt = DB::query(
-                'SELECT SUM(quantity * unit_price) AS total FROM purchase_order_items WHERE purchase_order_id = ? AND shop_id = ?',
+                'SELECT SUM(quantity_ordered * cost_price) AS total FROM purchase_order_items WHERE purchase_order_id = ? AND shop_id = ?',
                 [$poId, $shopId]
             );
             $newTotal = $stmt->fetchColumn() ?: 0.00;
@@ -762,7 +840,7 @@ class SupplierController {
         try {
             // Supplier main profile
             $stmt = DB::query(
-                'SELECT id, name, contact_name, email, phone, due_balance FROM suppliers WHERE id = ? AND shop_id = ?',
+                'SELECT id, name, contact_name, email, phone, due_balance, created_at FROM suppliers WHERE id = ? AND shop_id = ?',
                 [$supplierId, $shopId]
             );
             $supplier = $stmt->fetch();
@@ -784,15 +862,65 @@ class SupplierController {
             );
             $pos = $stmt->fetchAll();
 
+            $totalSpent = 0.0;
+            $poStats = [
+                'received' => 0,
+                'draft' => 0,
+                'ordered' => 0,
+                'cancelled' => 0
+            ];
+
             foreach ($pos as &$po) {
                 $po['id'] = (int)$po['id'];
                 $po['total_amount'] = (float)$po['total_amount'];
                 $po['paid_amount'] = (float)$po['paid_amount'];
                 $po['due_amount'] = (float)$po['due_amount'];
-            }
-            $supplier['purchase_orders'] = $pos;
 
-            // Return logs
+                if ($po['status'] === 'received') {
+                    $totalSpent += $po['total_amount'];
+                }
+
+                $status = $po['status'];
+                if (isset($poStats[$status])) {
+                    $poStats[$status]++;
+                } else {
+                    $poStats[$status] = 1;
+                }
+            }
+
+            // Cost logs list
+            $stmt = DB::query(
+                'SELECT cpl.*, p.name AS product_name, p.sku AS product_sku 
+                 FROM cost_price_logs cpl 
+                 JOIN products p ON cpl.product_id = p.id 
+                 WHERE cpl.supplier_id = ? AND cpl.shop_id = ? 
+                 ORDER BY cpl.created_at DESC',
+                [$supplierId, $shopId]
+            );
+            $costLogs = $stmt->fetchAll();
+            foreach ($costLogs as &$log) {
+                $log['id'] = (int)$log['id'];
+                $log['shop_id'] = (int)$log['shop_id'];
+                $log['product_id'] = (int)$log['product_id'];
+                $log['supplier_id'] = (int)$log['supplier_id'];
+                $log['old_cost_price'] = $log['old_cost_price'] !== null ? (float)$log['old_cost_price'] : null;
+                $log['new_cost_price'] = (float)$log['new_cost_price'];
+            }
+
+            // Expired products list
+            $stmt = DB::query(
+                'SELECT id, name, sku, expiry_date, stock_quantity 
+                 FROM products 
+                 WHERE supplier_id = ? AND shop_id = ? AND expiry_date IS NOT NULL AND expiry_date <= CURRENT_DATE()',
+                [$supplierId, $shopId]
+            );
+            $expiredProducts = $stmt->fetchAll();
+            foreach ($expiredProducts as &$ep) {
+                $ep['id'] = (int)$ep['id'];
+                $ep['stock_quantity'] = (int)$ep['stock_quantity'];
+            }
+
+            // Return logs (Returns & replacements history)
             $stmt = DB::query(
                 'SELECT sr.*, p.name AS product_name, p.sku AS product_sku 
                  FROM supplier_returns sr 
@@ -810,10 +938,21 @@ class SupplierController {
                 $ret['product_id'] = (int)$ret['product_id'];
                 $ret['quantity'] = (int)$ret['quantity'];
             }
-            $supplier['returns'] = $returns;
+
+            $response = [
+                'supplier' => $supplier,
+                'stats' => [
+                    'totalSpent' => $totalSpent,
+                    'poStats' => $poStats
+                ],
+                'purchaseOrders' => $pos,
+                'costLogs' => $costLogs,
+                'expiredProducts' => $expiredProducts,
+                'returnsHistory' => $returns
+            ];
 
             header('Content-Type: application/json');
-            echo json_encode($supplier);
+            echo json_encode($response);
 
         } catch (\Exception $e) {
             error_log('Get supplier profile error: ' . $e->getMessage());

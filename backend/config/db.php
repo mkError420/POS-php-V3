@@ -173,6 +173,36 @@ class DB {
                 $pdo->exec("ALTER TABLE `purchase_order_items` ADD COLUMN `expiry_date` DATE NULL");
             }
 
+            // Check if quantity_ordered column exists on purchase_order_items table (handle column name mismatch)
+            if ($tableExists('purchase_order_items') && $columnExists('purchase_order_items', 'quantity') && !$columnExists('purchase_order_items', 'quantity_ordered')) {
+                $pdo->exec("ALTER TABLE `purchase_order_items` CHANGE COLUMN `quantity` `quantity_ordered` INT NOT NULL");
+            }
+
+            // Check if quantity_received column exists on purchase_order_items table
+            if ($tableExists('purchase_order_items') && !$columnExists('purchase_order_items', 'quantity_received')) {
+                $pdo->exec("ALTER TABLE `purchase_order_items` ADD COLUMN `quantity_received` INT NULL");
+            }
+
+            // Check if cost_price column exists on purchase_order_items table
+            if ($tableExists('purchase_order_items') && !$columnExists('purchase_order_items', 'cost_price')) {
+                // If unit_price exists, rename it to cost_price
+                if ($columnExists('purchase_order_items', 'unit_price')) {
+                    $pdo->exec("ALTER TABLE `purchase_order_items` CHANGE COLUMN `unit_price` `cost_price` DECIMAL(10,2) NOT NULL");
+                } else {
+                    $pdo->exec("ALTER TABLE `purchase_order_items` ADD COLUMN `cost_price` DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+                }
+            }
+
+            // Check if selling_price column exists on purchase_order_items table
+            if ($tableExists('purchase_order_items') && !$columnExists('purchase_order_items', 'selling_price')) {
+                $pdo->exec("ALTER TABLE `purchase_order_items` ADD COLUMN `selling_price` DECIMAL(10,2) NULL");
+            }
+
+            // Check if subtotal column exists on purchase_order_items table
+            if ($tableExists('purchase_order_items') && !$columnExists('purchase_order_items', 'subtotal')) {
+                $pdo->exec("ALTER TABLE `purchase_order_items` ADD COLUMN `subtotal` DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+            }
+
             // Check if paid_amount column exists on purchase_orders table
             if ($tableExists('purchase_orders') && !$columnExists('purchase_orders', 'paid_amount')) {
                 $pdo->exec("ALTER TABLE `purchase_orders` ADD COLUMN `paid_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00");
@@ -215,6 +245,7 @@ class DB {
                     `refund_method` VARCHAR(30) NOT NULL DEFAULT 'cash',
                     `notes` TEXT NULL,
                     `deduct_from_due` TINYINT(1) NOT NULL DEFAULT 0,
+                    `amount_deducted_from_due` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
                     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY (`id`),
                     CONSTRAINT `fk_customer_returns_shop` FOREIGN KEY (`shop_id`) REFERENCES `shops` (`id`) ON DELETE CASCADE,
@@ -226,6 +257,10 @@ class DB {
 
             if ($tableExists('customer_returns') && !$columnExists('customer_returns', 'refund_method')) {
                 $pdo->exec("ALTER TABLE `customer_returns` ADD COLUMN `refund_method` VARCHAR(30) NOT NULL DEFAULT 'cash'");
+            }
+
+            if ($tableExists('customer_returns') && !$columnExists('customer_returns', 'amount_deducted_from_due')) {
+                $pdo->exec("ALTER TABLE `customer_returns` ADD COLUMN `amount_deducted_from_due` DECIMAL(10,2) NOT NULL DEFAULT 0.00");
             }
 
             // Check if logo column exists on users table

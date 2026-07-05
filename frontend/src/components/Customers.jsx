@@ -1304,6 +1304,11 @@ export default function Customers() {
                                                   )}
                                                 </div>
                                               </div>
+                                              {parseFloat(historyCustomer.due_balance || 0) > 0 && returnForm.refund_method === 'cash' && (
+                                                <div className="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
+                                                  <strong>Notice:</strong> This customer has an outstanding due balance of ৳{parseFloat(historyCustomer.due_balance).toFixed(2)}. The refund will be automatically adjusted (deducted) against their due balance first, and any remaining excess refund will be paid in cash.
+                                                </div>
+                                              )}
                                               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                                                 <label className="flex items-center gap-2 text-sm text-slate-600">
                                                   <input

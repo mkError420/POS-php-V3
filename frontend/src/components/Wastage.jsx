@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import API_BASE_URL from '../config';
 
 export default function Wastage() {
@@ -18,6 +18,10 @@ export default function Wastage() {
   const [selectedShopId, setSelectedShopId] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+
+  const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const dropdownRef = useRef(null);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -99,6 +103,44 @@ export default function Wastage() {
     fetchProducts();
   }, [startDate, endDate, selectedShopId]);
 
+  // Handle click outside to close product search dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowProductDropdown(false);
+        // If they clicked outside and have a product selected, restore its display name
+        if (formData.product_id) {
+          const selected = products.find(p => p.id === parseInt(formData.product_id));
+          if (selected) {
+            setProductSearchTerm(`${selected.name} (SKU: ${selected.sku})`);
+          }
+        } else {
+          setProductSearchTerm('');
+        }
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [formData.product_id, products]);
+
+  const getFilteredProducts = () => {
+    // If the search term is exactly the selected product's label, show all products
+    if (formData.product_id) {
+      const selected = products.find(p => p.id === parseInt(formData.product_id));
+      if (selected && productSearchTerm === `${selected.name} (SKU: ${selected.sku})`) {
+        return products;
+      }
+    }
+    if (!productSearchTerm) return products;
+    const lowerTerm = productSearchTerm.toLowerCase();
+    return products.filter(p => 
+      p.name.toLowerCase().includes(lowerTerm) || 
+      p.sku.toLowerCase().includes(lowerTerm)
+    );
+  };
+
   const triggerAlert = (type, message) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 4000);
@@ -174,6 +216,8 @@ export default function Wastage() {
       notes: '',
       adjusted_at: new Date().toISOString().split('T')[0]
     });
+    setProductSearchTerm('');
+    setShowProductDropdown(false);
   };
 
   const exportWastagesToCSV = () => {
@@ -694,20 +738,50 @@ export default function Wastage() {
             <form onSubmit={handleAddSubmit} className="mt-4 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Select Product *</label>
-                <select
-                  name="product_id"
-                  value={formData.product_id}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-1 focus:ring-rose-500 outline-none bg-white text-slate-700"
-                >
-                  <option value="">-- Choose target product --</option>
-                  {products.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} (SKU: {p.sku}) | Stock: {p.stock_quantity}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative" ref={dropdownRef}>
+                  <input
+                    type="text"
+                    value={productSearchTerm}
+                    onFocus={() => setShowProductDropdown(true)}
+                    onChange={(e) => {
+                      setProductSearchTerm(e.target.value);
+                      setShowProductDropdown(true);
+                      if (formData.product_id) {
+                        setFormData(prev => ({ ...prev, product_id: '' }));
+                      }
+                    }}
+                    placeholder="Type to search product..."
+                    required
+                    className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-1 focus:ring-rose-500 outline-none bg-white text-slate-700 font-medium"
+                  />
+                  {showProductDropdown && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                      {getFilteredProducts().length === 0 ? (
+                        <div className="p-3 text-sm text-slate-400 text-center">No products found</div>
+                      ) : (
+                        getFilteredProducts().map(p => (
+                          <div
+                            key={p.id}
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, product_id: p.id }));
+                              setProductSearchTerm(`${p.name} (SKU: ${p.sku})`);
+                              setShowProductDropdown(false);
+                            }}
+                            className="p-2.5 hover:bg-rose-50 cursor-pointer text-xs flex justify-between items-center transition-colors border-b border-slate-100 last:border-0"
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-slate-800">{p.name}</span>
+                              <span className="text-slate-450 text-[10px]">SKU: {p.sku}</span>
+                            </div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${p.stock_quantity <= 0 ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600'}`}>
+                              Stock: {p.stock_quantity}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
