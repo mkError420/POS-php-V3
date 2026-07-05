@@ -383,9 +383,18 @@ class SupplierController {
             // Insert items and calculate total amount
             $totalAmount = self::processAndInsertPoItems($poId, $shopId, $supplierId, $items);
 
-            // Paid amount = Cost Price * Stock Quantity (total_amount)
-            $paidAmount = $totalAmount;
-            $dueAmount = 0.00;
+            // Calculate paid & due amounts based on payment basis
+            if ($paymentBasis === 'credit') {
+                $requestedPaidAmount = (float)$paidAmount;
+                if ($requestedPaidAmount < 0) {
+                    $requestedPaidAmount = 0.00;
+                }
+                $paidAmount = min($requestedPaidAmount, $totalAmount);
+                $dueAmount = $totalAmount - $paidAmount;
+            } else {
+                $paidAmount = $totalAmount;
+                $dueAmount = 0.00;
+            }
 
             // Update main PO with correct totals
             DB::query(
@@ -393,8 +402,8 @@ class SupplierController {
                 [$totalAmount, $paidAmount, $dueAmount, $poId, $shopId]
             );
 
-            // Update supplier due balance if status is ordered, payment basis is credit, and due amount > 0
-            if ($status === 'ordered' && $paymentBasis === 'credit' && $dueAmount > 0) {
+            // Update supplier due balance if status is ordered or received, payment basis is credit, and due amount > 0
+            if (in_array($status, ['ordered', 'received']) && $paymentBasis === 'credit' && $dueAmount > 0) {
                 DB::query(
                     'UPDATE suppliers SET due_balance = due_balance + ? WHERE id = ? AND shop_id = ?',
                     [$dueAmount, $supplierId, $shopId]
@@ -513,17 +522,35 @@ class SupplierController {
 
             $supplierId = (int)$po['supplier_id'];
 
+            // Retrieve current PO info to get payment basis & paid amount fallback
+            $poStmt = DB::query('SELECT payment_basis, paid_amount FROM purchase_orders WHERE id = ? AND shop_id = ?', [$poId, $shopId]);
+            $poInfo = $poStmt->fetch();
+
+            $paymentBasis = $requestData['payment_basis'] ?? ($poInfo ? $poInfo['payment_basis'] : 'cash');
+            $requestedPaidAmount = isset($requestData['paid_amount']) ? (float)$requestData['paid_amount'] : ($poInfo ? (float)$poInfo['paid_amount'] : 0.00);
+
             // Sync items (delete and re-insert)
             DB::query('DELETE FROM purchase_order_items WHERE purchase_order_id = ? AND shop_id = ?', [$poId, $shopId]);
 
             // Re-insert items and get total amount
             $totalAmount = self::processAndInsertPoItems($poId, $shopId, $supplierId, $items);
 
+            if ($paymentBasis === 'credit') {
+                if ($requestedPaidAmount < 0) {
+                    $requestedPaidAmount = 0.00;
+                }
+                $paidAmount = min($requestedPaidAmount, $totalAmount);
+                $dueAmount = $totalAmount - $paidAmount;
+            } else {
+                $paidAmount = $totalAmount;
+                $dueAmount = 0.00;
+            }
+
             // Update main PO total
             DB::query(
-                'UPDATE purchase_orders SET total_amount = ?, paid_amount = ?, due_amount = ?, notes = ? 
+                'UPDATE purchase_orders SET total_amount = ?, paid_amount = ?, due_amount = ?, payment_basis = ?, notes = ? 
                  WHERE id = ? AND shop_id = ?',
-                [$totalAmount, $totalAmount, 0.00, $notes, $poId, $shopId]
+                [$totalAmount, $paidAmount, $dueAmount, $paymentBasis, $notes, $poId, $shopId]
             );
 
             DB::commit();
@@ -825,12 +852,41 @@ class SupplierController {
                 'SELECT SUM(quantity_ordered * cost_price) AS total FROM purchase_order_items WHERE purchase_order_id = ? AND shop_id = ?',
                 [$poId, $shopId]
             );
-            $newTotal = $stmt->fetchColumn() ?: 0.00;
+            $newTotal = (float)($stmt->fetchColumn() ?: 0.00);
+
+            // Fetch current PO info
+            $poStmt = DB::query('SELECT status, payment_basis, paid_amount, due_amount, supplier_id FROM purchase_orders WHERE id = ? AND shop_id = ?', [$poId, $shopId]);
+            $poInfo = $poStmt->fetch();
+            
+            $poStatus = $poInfo['status'];
+            $paymentBasis = $poInfo['payment_basis'];
+            $oldPaid = (float)$poInfo['paid_amount'];
+            $oldDue = (float)$poInfo['due_amount'];
+            $supplierId = (int)$poInfo['supplier_id'];
+
+            if ($paymentBasis === 'credit') {
+                $newPaid = min($oldPaid, $newTotal);
+                $newDue = $newTotal - $newPaid;
+            } else {
+                $newPaid = $newTotal;
+                $newDue = 0.00;
+            }
 
             DB::query(
-                'UPDATE purchase_orders SET total_amount = ? WHERE id = ? AND shop_id = ?',
-                [$newTotal, $poId, $shopId]
+                'UPDATE purchase_orders SET total_amount = ?, paid_amount = ?, due_amount = ? WHERE id = ? AND shop_id = ?',
+                [$newTotal, $newPaid, $newDue, $poId, $shopId]
             );
+
+            // Adjust supplier due balance if the PO status is ordered or received
+            if (in_array($poStatus, ['ordered', 'received']) && $paymentBasis === 'credit') {
+                $dueDifference = $oldDue - $newDue;
+                if ($dueDifference != 0.00) {
+                    DB::query(
+                        'UPDATE suppliers SET due_balance = GREATEST(due_balance - ?, 0) WHERE id = ? AND shop_id = ?',
+                        [$dueDifference, $supplierId, $shopId]
+                    );
+                }
+            }
 
             DB::commit();
 

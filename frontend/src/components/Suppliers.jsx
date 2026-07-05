@@ -476,6 +476,19 @@ export default function Suppliers() {
       return;
     }
 
+    if (poFormData.payment_basis === 'credit') {
+      const paidAmt = parseFloat(poFormData.paid_amount || 0);
+      const totalAmt = calculatePOTotal();
+      if (isNaN(paidAmt) || paidAmt < 0) {
+        triggerAlert('error', 'Initial Paid Amount must be a valid non-negative number.');
+        return;
+      }
+      if (paidAmt > totalAmt) {
+        triggerAlert('error', `Initial Paid Amount cannot exceed the total PO amount of ${formatCurrency(totalAmt)}.`);
+        return;
+      }
+    }
+
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/suppliers/purchase-orders`, {
