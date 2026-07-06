@@ -13,6 +13,7 @@ import ManageShops from './components/ManageShops';
 import SystemUsers from './components/SystemUsers';
 import HeldBills from './components/HeldBills';
 import OtherCost from './components/OtherCost';
+import OtherSales from './components/OtherSales';
 import TotalRevenue from './components/TotalRevenue';
 import Wastage from './components/Wastage';
 import Returns from './components/Returns';
@@ -218,6 +219,7 @@ export default function App() {
         case '/products': return <Inventory />;
         case '/wastage': return <Wastage />;
         case '/other-cost': return <OtherCost />;
+        case '/other-sales': return <OtherSales />;
         case '/total-revenue': return <TotalRevenue />;
         case '/settings': return <Settings />;
         default: return <Dashboard />;

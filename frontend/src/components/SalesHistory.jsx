@@ -18,7 +18,7 @@ export default function SalesHistory() {
   const [productName, setProductName] = useState('');
   const [productDailySales, setProductDailySales] = useState(null);
   const [dailySalesLoading, setDailySalesLoading] = useState(false);
-  
+
   // Modal viewer state
   const [selectedSale, setSelectedSale] = useState(null);
   const [saleDetails, setSaleDetails] = useState(null);
@@ -182,7 +182,7 @@ export default function SalesHistory() {
       if (!response.ok) throw new Error(data.error || 'Failed to delete sale.');
 
       triggerAlert('success', data.message);
-      
+
       // Close receipt modal if this sale was being viewed
       if (selectedSale && selectedSale.id === saleId) {
         setSelectedSale(null);
@@ -220,7 +220,7 @@ export default function SalesHistory() {
 
   const handleBulkDelete = async () => {
     if (selectedSaleIds.length === 0) return;
-    
+
     if (!window.confirm(`Are you sure you want to delete the ${selectedSaleIds.length} selected sales?\n\nThis will:\n• Restore all product stock quantities for these transactions\n• Reverse any customer due balances associated with them\n• Remove these transactions from all reports\n\nThis action cannot be undone.`)) {
       return;
     }
@@ -229,9 +229,9 @@ export default function SalesHistory() {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/sales/bulk-delete`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ ids: selectedSaleIds })
       });
@@ -303,7 +303,7 @@ export default function SalesHistory() {
 
   const handleDueBillsPrint = () => {
     const printWindow = window.open('', 'PRINT', 'height=800,width=1200');
-    
+
     printWindow.document.write('<html><head><title>Outstanding Due Bills Report</title>');
     printWindow.document.write(`
       <style>
@@ -401,12 +401,11 @@ export default function SalesHistory() {
 
   return (
     <div className="space-y-6">
-      
+
       {/* Alert Banner */}
       {alert && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-lg flex items-center transition-all ${
-          alert.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
-        }`}>
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-lg flex items-center transition-all ${alert.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
+          }`}>
           <span className="text-sm font-semibold">{alert.message}</span>
         </div>
       )}
@@ -610,25 +609,23 @@ export default function SalesHistory() {
                 <h3 className="text-lg font-bold text-slate-800">Sales Transactions Trend</h3>
                 <p className="text-xs text-slate-500">Chronological summary of successful sales volume and transaction count</p>
               </div>
-              
+
               <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200/60 self-end sm:self-auto">
                 <button
                   onClick={() => setChartType('revenue')}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    chartType === 'revenue'
-                      ? 'bg-white text-indigo-650 shadow-xs'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${chartType === 'revenue'
+                    ? 'bg-white text-indigo-650 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                    }`}
                 >
                   Revenue (৳)
                 </button>
                 <button
                   onClick={() => setChartType('sales')}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    chartType === 'sales'
-                      ? 'bg-white text-indigo-650 shadow-xs'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${chartType === 'sales'
+                    ? 'bg-white text-indigo-650 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                    }`}
                 >
                   Sales Volume
                 </button>
@@ -637,8 +634,8 @@ export default function SalesHistory() {
 
             <div className="relative w-full h-[180px]">
               {/* SVG Plot */}
-              <svg 
-                viewBox="0 0 600 180" 
+              <svg
+                viewBox="0 0 600 180"
                 className="w-full h-full overflow-visible"
                 preserveAspectRatio="none"
               >
@@ -655,18 +652,18 @@ export default function SalesHistory() {
                   const labelVal = ratio * maxVal;
                   return (
                     <g key={idx}>
-                      <line 
-                        x1={55} 
-                        y1={y} 
-                        x2={575} 
-                        y2={y} 
-                        stroke="#f1f5f9" 
+                      <line
+                        x1={55}
+                        y1={y}
+                        x2={575}
+                        y2={y}
+                        stroke="#f1f5f9"
                         strokeWidth="1.5"
                       />
-                      <text 
-                        x={43} 
-                        y={y + 4} 
-                        textAnchor="end" 
+                      <text
+                        x={43}
+                        y={y + 4}
+                        textAnchor="end"
                         className="text-[10px] font-bold text-slate-400 fill-current font-sans"
                       >
                         {chartType === 'revenue' ? `৳${Math.round(labelVal)}` : Math.round(labelVal)}
@@ -693,13 +690,13 @@ export default function SalesHistory() {
                   return (
                     <>
                       <path d={areaPath} fill="url(#salesAreaGradient)" />
-                      <path 
-                        d={linePath} 
-                        fill="none" 
-                        stroke="#6366f1" 
-                        strokeWidth="2.5" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
+                      <path
+                        d={linePath}
+                        fill="none"
+                        stroke="#6366f1"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
 
                       {chartPoints.map((pt, idx) => (
@@ -805,8 +802,8 @@ export default function SalesHistory() {
         <div className="overflow-x-auto">
           <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
             <div>
-              <h3 className="font-bold text-slate-800">Outstanding Due Bills</h3>
-              <p className="text-xs text-slate-500">List of all recorded due balances from sales transactions.</p>
+              <h3 className="font-bold text-slate-800">All Sales History</h3>
+              <p className="text-xs text-slate-500">List of all recorded transactions.</p>
             </div>
             <button
               onClick={exportDueBillsToCSV}
@@ -949,16 +946,15 @@ export default function SalesHistory() {
             >
               Previous
             </button>
-            
+
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${
-                  currentPage === page
-                    ? 'bg-slate-600 text-white shadow-xs'
-                    : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'
-                }`}
+                className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${currentPage === page
+                  ? 'bg-slate-600 text-white shadow-xs'
+                  : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'
+                  }`}
               >
                 {page}
               </button>
@@ -978,7 +974,7 @@ export default function SalesHistory() {
       {profitModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto">
           <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden">
-            
+
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-5 flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -1011,9 +1007,9 @@ export default function SalesHistory() {
                 </div>
               ) : profitModal.details ? (() => {
                 const items = profitModal.details.items || [];
-                const totalCost    = items.reduce((s, i) => s + parseFloat(i.cost_price || 0) * i.quantity, 0);
+                const totalCost = items.reduce((s, i) => s + parseFloat(i.cost_price || 0) * i.quantity, 0);
                 const totalRevenue = items.reduce((s, i) => s + parseFloat(i.unit_price || 0) * i.quantity, 0);
-                const totalProfit  = totalRevenue - totalCost;
+                const totalProfit = totalRevenue - totalCost;
                 const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : '0.0';
 
                 return (
@@ -1033,14 +1029,14 @@ export default function SalesHistory() {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {items.map((item, idx) => {
-                            const costPerUnit  = parseFloat(item.cost_price || 0);
-                            const sellPerUnit  = parseFloat(item.unit_price || 0);
-                            const qty          = item.quantity;
+                            const costPerUnit = parseFloat(item.cost_price || 0);
+                            const sellPerUnit = parseFloat(item.unit_price || 0);
+                            const qty = item.quantity;
                             const totalCostRow = costPerUnit * qty;
                             const totalSellRow = sellPerUnit * qty;
-                            const profitRow    = totalSellRow - totalCostRow;
-                            const marginRow    = totalSellRow > 0 ? ((profitRow / totalSellRow) * 100).toFixed(1) : '0.0';
-                            const isLoss       = profitRow < 0;
+                            const profitRow = totalSellRow - totalCostRow;
+                            const marginRow = totalSellRow > 0 ? ((profitRow / totalSellRow) * 100).toFixed(1) : '0.0';
+                            const isLoss = profitRow < 0;
 
                             return (
                               <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
@@ -1065,13 +1061,12 @@ export default function SalesHistory() {
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 text-center">
-                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                                    isLoss
-                                      ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                      : parseFloat(marginRow) >= 20
-                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                                        : 'bg-amber-50 text-amber-700 border border-amber-100'
-                                  }`}>
+                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isLoss
+                                    ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                    : parseFloat(marginRow) >= 20
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                      : 'bg-amber-50 text-amber-700 border border-amber-100'
+                                    }`}>
                                     {isLoss ? '' : ''}{marginRow}%
                                   </span>
                                 </td>
@@ -1130,7 +1125,7 @@ export default function SalesHistory() {
       {selectedSale && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
           <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh]">
-            
+
             {detailsLoading ? (
               <div className="flex-1 py-24 flex justify-center items-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
@@ -1161,8 +1156,8 @@ export default function SalesHistory() {
                     due_amount: parseFloat(saleDetails.due_amount || 0)
                   };
 
-                  const taxRatePercent = receipt.subtotal > 0 
-                    ? ((receipt.tax / receipt.subtotal) * 100).toFixed(1).replace(/\.0$/, '') 
+                  const taxRatePercent = receipt.subtotal > 0
+                    ? ((receipt.tax / receipt.subtotal) * 100).toFixed(1).replace(/\.0$/, '')
                     : '10';
 
                   return (
@@ -1175,7 +1170,7 @@ export default function SalesHistory() {
                             {previewMode === 'thermal' ? 'Thermal 80mm Roll' : 'Regular A4 Sheet'}
                           </span>
                         </div>
-                        
+
                         <div className="w-full py-4 flex justify-center items-start min-h-0 overflow-y-auto">
                           {previewMode === 'thermal' ? (
                             /* Thermal Receipt Mockup */
@@ -1187,7 +1182,7 @@ export default function SalesHistory() {
                                 {receipt.shop_email && <p className="text-[10px] text-slate-500">Email: {receipt.shop_email}</p>}
                                 <p className="text-[9px] text-slate-400 mt-2 font-sans tracking-widest">*** TRANSACTION RECEIPT ***</p>
                               </div>
-                              
+
                               <div className="border-b border-dashed border-slate-300 py-2 my-2 text-[10px] space-y-0.5 text-slate-600">
                                 <div><span className="font-semibold text-slate-800">Sale ID:</span> #{receipt.sale_id}</div>
                                 <div><span className="font-semibold text-slate-800">Date:</span> {receipt.created_at}</div>
@@ -1364,22 +1359,20 @@ export default function SalesHistory() {
                               <button
                                 type="button"
                                 onClick={() => setPreviewMode('thermal')}
-                                className={`py-2 text-xs font-semibold rounded-lg transition-all ${
-                                  previewMode === 'thermal' 
-                                    ? 'bg-white text-indigo-700 shadow-sm' 
-                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/50'
-                                }`}
+                                className={`py-2 text-xs font-semibold rounded-lg transition-all ${previewMode === 'thermal'
+                                  ? 'bg-white text-indigo-700 shadow-sm'
+                                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/50'
+                                  }`}
                               >
                                 Thermal (80mm)
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setPreviewMode('regular')}
-                                className={`py-2 text-xs font-semibold rounded-lg transition-all ${
-                                  previewMode === 'regular' 
-                                    ? 'bg-white text-indigo-700 shadow-sm' 
-                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/50'
-                                }`}
+                                className={`py-2 text-xs font-semibold rounded-lg transition-all ${previewMode === 'regular'
+                                  ? 'bg-white text-indigo-700 shadow-sm'
+                                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/50'
+                                  }`}
                               >
                                 Regular (A4)
                               </button>
@@ -1420,7 +1413,7 @@ export default function SalesHistory() {
                             </svg>
                             <span>Print {previewMode === 'thermal' ? 'Thermal' : 'Regular A4'}</span>
                           </button>
-                          
+
                           {/* Admin delete transaction */}
                           <button
                             onClick={() => handleDeleteSale(receipt.sale_id)}
@@ -1432,7 +1425,7 @@ export default function SalesHistory() {
                             </svg>
                             <span>Delete Transaction</span>
                           </button>
-                          
+
                           <button
                             onClick={() => { setSelectedSale(null); setSaleDetails(null); }}
                             className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-xl text-sm transition-colors"
@@ -1456,7 +1449,7 @@ export default function SalesHistory() {
                               </div>
                               <p style={{ margin: '4px 0 0 0', fontSize: '9px', fontWeight: 'bold', letterSpacing: '0.05em' }}>*** TRANSACTION RECEIPT ***</p>
                             </div>
-                            
+
                             <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '4px 0', margin: '8px 0', fontSize: '9px', lineHeight: '1.3' }}>
                               <div><strong>Sale ID:</strong> #{receipt.sale_id}</div>
                               <div><strong>Date:</strong> {receipt.created_at}</div>

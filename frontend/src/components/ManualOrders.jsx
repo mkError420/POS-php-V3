@@ -1111,8 +1111,8 @@ export default function ManualOrders() {
                 </svg>
                 <span>Collect Outstanding Due</span>
               </h3>
-              <button 
-                onClick={() => { setShowPayDueModal(false); setPayingOrder(null); }} 
+              <button
+                onClick={() => { setShowPayDueModal(false); setPayingOrder(null); }}
                 className="text-slate-400 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-xl transition-all duration-200"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1161,11 +1161,10 @@ export default function ManualOrders() {
                   <button
                     type="button"
                     onClick={() => setPayDueMethod('cash')}
-                    className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center space-y-1.5 transition-all duration-200 cursor-pointer ${
-                      payDueMethod === 'cash'
-                        ? 'bg-emerald-50 border-emerald-500 text-emerald-700 font-bold shadow-xs scale-[1.02]'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-semibold'
-                    }`}
+                    className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center space-y-1.5 transition-all duration-200 cursor-pointer ${payDueMethod === 'cash'
+                      ? 'bg-emerald-50 border-emerald-500 text-emerald-700 font-bold shadow-xs scale-[1.02]'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-semibold'
+                      }`}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -1177,11 +1176,10 @@ export default function ManualOrders() {
                   <button
                     type="button"
                     onClick={() => setPayDueMethod('card')}
-                    className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center space-y-1.5 transition-all duration-200 cursor-pointer ${
-                      payDueMethod === 'card'
-                        ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-xs scale-[1.02]'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-semibold'
-                    }`}
+                    className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center space-y-1.5 transition-all duration-200 cursor-pointer ${payDueMethod === 'card'
+                      ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-xs scale-[1.02]'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-semibold'
+                      }`}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
@@ -1193,11 +1191,10 @@ export default function ManualOrders() {
                   <button
                     type="button"
                     onClick={() => setPayDueMethod('mobile_pay')}
-                    className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center space-y-1.5 transition-all duration-200 cursor-pointer ${
-                      payDueMethod === 'mobile_pay'
-                        ? 'bg-purple-50 border-purple-500 text-purple-700 font-bold shadow-xs scale-[1.02]'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-semibold'
-                    }`}
+                    className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center space-y-1.5 transition-all duration-200 cursor-pointer ${payDueMethod === 'mobile_pay'
+                      ? 'bg-purple-50 border-purple-500 text-purple-700 font-bold shadow-xs scale-[1.02]'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-semibold'
+                      }`}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -1209,11 +1206,10 @@ export default function ManualOrders() {
                   <button
                     type="button"
                     onClick={() => setPayDueMethod('other')}
-                    className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center space-y-1.5 transition-all duration-200 cursor-pointer ${
-                      payDueMethod === 'other'
-                        ? 'bg-slate-100 border-slate-350 text-slate-805 font-bold shadow-xs scale-[1.02]'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-semibold'
-                    }`}
+                    className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center space-y-1.5 transition-all duration-200 cursor-pointer ${payDueMethod === 'other'
+                      ? 'bg-slate-100 border-slate-350 text-slate-805 font-bold shadow-xs scale-[1.02]'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-semibold'
+                      }`}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
@@ -1235,48 +1231,47 @@ export default function ManualOrders() {
                     value={payDueAmount}
                     onChange={(e) => setPayDueAmount(e.target.value)}
                     required
-                    className={`w-full border rounded-xl p-3 text-sm font-semibold outline-none focus:ring-2 transition-all ${
-                      parseFloat(payDueAmount) > parseFloat(payingOrder.current_sale_due)
-                        ? 'border-rose-500 focus:ring-rose-250 bg-rose-50/20'
-                        : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-500'
-                    }`}
+                    className={`w-full border rounded-xl p-3 text-sm font-semibold outline-none focus:ring-2 transition-all ${parseFloat(payDueAmount) > parseFloat(payingOrder.current_sale_due)
+                      ? 'border-rose-500 focus:ring-rose-250 bg-rose-50/20'
+                      : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-500'
+                      }`}
                     placeholder="0.00"
                   />
                 </div>
 
                 {/* Quick Presets */}
                 <div className="flex flex-wrap gap-1.5 mt-2">
-                  <button 
-                    type="button" 
-                    onClick={() => setPayDueAmount(parseFloat(payingOrder.current_sale_due).toFixed(2))} 
+                  <button
+                    type="button"
+                    onClick={() => setPayDueAmount(parseFloat(payingOrder.current_sale_due).toFixed(2))}
                     className="px-2.5 py-1 text-[10px] font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100 rounded-lg transition-colors cursor-pointer"
                   >
                     Full Amount
                   </button>
-                  <button 
-                    type="button" 
-                    onClick={() => setPayDueAmount((parseFloat(payingOrder.current_sale_due) / 2).toFixed(2))} 
+                  <button
+                    type="button"
+                    onClick={() => setPayDueAmount((parseFloat(payingOrder.current_sale_due) / 2).toFixed(2))}
                     className="px-2.5 py-1 text-[10px] font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100 rounded-lg transition-colors cursor-pointer"
                   >
                     Half Amount
                   </button>
-                  <button 
-                    type="button" 
-                    onClick={() => handleAddAmount(100, payingOrder.current_sale_due)} 
+                  <button
+                    type="button"
+                    onClick={() => handleAddAmount(100, payingOrder.current_sale_due)}
                     className="px-2 py-1 text-[10px] font-bold bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors cursor-pointer"
                   >
                     +৳100
                   </button>
-                  <button 
-                    type="button" 
-                    onClick={() => handleAddAmount(500, payingOrder.current_sale_due)} 
+                  <button
+                    type="button"
+                    onClick={() => handleAddAmount(500, payingOrder.current_sale_due)}
                     className="px-2 py-1 text-[10px] font-bold bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors cursor-pointer"
                   >
                     +৳500
                   </button>
-                  <button 
-                    type="button" 
-                    onClick={() => handleAddAmount(1000, payingOrder.current_sale_due)} 
+                  <button
+                    type="button"
+                    onClick={() => handleAddAmount(1000, payingOrder.current_sale_due)}
                     className="px-2 py-1 text-[10px] font-bold bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors cursor-pointer"
                   >
                     +৳1000
@@ -1538,7 +1533,7 @@ export default function ManualOrders() {
               <div className="flex justify-center space-x-3 bg-slate-50 p-2 rounded-xl border border-slate-100">
                 <button
                   onClick={() => handlePrintReceipt('thermal')}
-                  className="bg-indigo-650 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-xl text-xs shadow-sm flex items-center space-x-1.5"
+                  className="bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-4 rounded-xl text-xs shadow-sm flex items-center space-x-1.5"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />

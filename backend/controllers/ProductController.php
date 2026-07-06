@@ -33,12 +33,18 @@ class ProductController {
                 $params[] = "%$search%";
             }
 
+            $alertConditions = [];
+
             if ($low_stock === 'true') {
-                $sql .= " AND p.stock_quantity <= p.low_stock_threshold";
+                $alertConditions[] = "p.stock_quantity <= p.low_stock_threshold";
             }
 
             if ($expiring === 'true') {
-                $sql .= " AND p.expiry_date IS NOT NULL AND p.expiry_date <= DATE_ADD(CURRENT_DATE(), INTERVAL 30 DAY)";
+                $alertConditions[] = "(p.expiry_date IS NOT NULL AND p.expiry_date <= DATE_ADD(CURRENT_DATE(), INTERVAL 30 DAY))";
+            }
+
+            if (!empty($alertConditions)) {
+                $sql .= " AND (" . implode(" OR ", $alertConditions) . ")";
             }
 
             $latest = $_GET['latest'] ?? null;

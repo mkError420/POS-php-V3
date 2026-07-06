@@ -295,6 +295,32 @@ class DB {
                 $pdo->exec("ALTER TABLE `due_payments` ADD COLUMN `note` TEXT NULL");
             }
 
+            // Create other_sales table if not exists
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS `other_sales` (
+                    `id` INT AUTO_INCREMENT,
+                    `shop_id` INT NOT NULL,
+                    `title` VARCHAR(255) NULL,
+                    `customer_name` VARCHAR(255) NULL,
+                    `customer_phone` VARCHAR(50) NULL,
+                    `items` TEXT NULL,
+                    `amount` DECIMAL(10,2) NOT NULL,
+                    `sale_date` DATE NOT NULL,
+                    `notes` TEXT NULL,
+                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (`id`),
+                    CONSTRAINT `fk_other_sales_shop` FOREIGN KEY (`shop_id`) REFERENCES `shops` (`id`) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+            
+            // Alter existing table if we just changed the schema (for backwards compatibility during development)
+            if ($tableExists('other_sales') && !$columnExists('other_sales', 'items')) {
+                $pdo->exec("ALTER TABLE `other_sales` ADD COLUMN `customer_name` VARCHAR(255) NULL");
+                $pdo->exec("ALTER TABLE `other_sales` ADD COLUMN `customer_phone` VARCHAR(50) NULL");
+                $pdo->exec("ALTER TABLE `other_sales` ADD COLUMN `items` TEXT NULL");
+                $pdo->exec("ALTER TABLE `other_sales` CHANGE COLUMN `title` `title` VARCHAR(255) NULL");
+            }
+
             // Create manual_orders table if not exists
             $pdo->exec("
                 CREATE TABLE IF NOT EXISTS `manual_orders` (

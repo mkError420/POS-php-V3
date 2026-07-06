@@ -23,6 +23,9 @@ export default function Adjustments() {
     reason: '',
     notes: ''
   });
+  
+  const [productSearch, setProductSearch] = useState('');
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
 
   const fetchAdjustments = async () => {
     setLoading(true);
@@ -161,6 +164,8 @@ export default function Adjustments() {
       reason: '',
       notes: ''
     });
+    setProductSearch('');
+    setShowProductDropdown(false);
   };
 
   const openAddModal = (product = null) => {
@@ -171,6 +176,7 @@ export default function Adjustments() {
         reason: '',
         notes: ''
       });
+      setProductSearch(`${product.name} (${product.sku})`);
     } else {
       resetForm();
     }
@@ -366,20 +372,51 @@ export default function Adjustments() {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Product *</label>
-                <select
-                  name="product_id"
-                  value={formData.product_id}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="">Select a product</option>
-                  {products.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.sku}) - Current: {p.stock_quantity}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={productSearch}
+                    onChange={(e) => {
+                      setProductSearch(e.target.value);
+                      setShowProductDropdown(true);
+                      setFormData({ ...formData, product_id: '' });
+                    }}
+                    onFocus={() => setShowProductDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowProductDropdown(false), 200)}
+                    placeholder="Search product by name or SKU"
+                    className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
+                    required={!formData.product_id}
+                  />
+                  {showProductDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {products
+                        .filter(p => 
+                          p.name.toLowerCase().includes(productSearch.toLowerCase()) || 
+                          (p.sku && p.sku.toLowerCase().includes(productSearch.toLowerCase()))
+                        )
+                        .map(p => (
+                        <div
+                          key={p.id}
+                          className="px-4 py-2 hover:bg-slate-50 cursor-pointer text-sm border-b border-slate-100 last:border-0"
+                          onClick={() => {
+                            setFormData({ ...formData, product_id: String(p.id), adjusted_quantity: String(p.stock_quantity) });
+                            setProductSearch(`${p.name} (${p.sku})`);
+                            setShowProductDropdown(false);
+                          }}
+                        >
+                          <div className="font-semibold text-slate-800">{p.name}</div>
+                          <div className="text-xs text-slate-500">SKU: {p.sku} • Current Stock: {p.stock_quantity}</div>
+                        </div>
+                      ))}
+                      {products.filter(p => 
+                        p.name.toLowerCase().includes(productSearch.toLowerCase()) || 
+                        (p.sku && p.sku.toLowerCase().includes(productSearch.toLowerCase()))
+                      ).length === 0 && (
+                        <div className="px-4 py-3 text-sm text-slate-500 text-center">No products found</div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Adjusted Quantity *</label>

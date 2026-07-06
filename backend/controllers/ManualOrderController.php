@@ -16,9 +16,13 @@ class ManualOrderController {
 
         try {
             $stmt = DB::query(
-                'SELECT mo.*, c.name as customer_name_joined 
+                'SELECT mo.*, c.name as customer_name_joined,
+                        s.final_amount as sale_final_amount,
+                        s.paid_amount as sale_paid_amount,
+                        s.due_amount as current_sale_due
                  FROM manual_orders mo 
                  LEFT JOIN customers c ON mo.customer_id = c.id 
+                 LEFT JOIN sales s ON mo.sale_id = s.id
                  WHERE mo.shop_id = ? 
                  ORDER BY mo.created_at DESC',
                 [$shopId]
@@ -33,6 +37,9 @@ class ManualOrderController {
                 $order['tax'] = (float)$order['tax'];
                 $order['sale_id'] = $order['sale_id'] !== null ? (int)$order['sale_id'] : null;
                 $order['created_by'] = (int)$order['created_by'];
+                $order['sale_final_amount'] = $order['sale_final_amount'] !== null ? (float)$order['sale_final_amount'] : null;
+                $order['sale_paid_amount'] = $order['sale_paid_amount'] !== null ? (float)$order['sale_paid_amount'] : null;
+                $order['current_sale_due'] = $order['current_sale_due'] !== null ? (float)$order['current_sale_due'] : null;
                 
                 if ($order['customer_id'] !== null) {
                     $order['customer_name'] = $order['customer_name_joined'] ?: $order['customer_name'];
@@ -58,9 +65,13 @@ class ManualOrderController {
 
         try {
             $stmt = DB::query(
-                'SELECT mo.*, c.name as customer_name_joined 
+                'SELECT mo.*, c.name as customer_name_joined,
+                        s.final_amount as sale_final_amount,
+                        s.paid_amount as sale_paid_amount,
+                        s.due_amount as current_sale_due
                  FROM manual_orders mo 
                  LEFT JOIN customers c ON mo.customer_id = c.id 
+                 LEFT JOIN sales s ON mo.sale_id = s.id
                  WHERE mo.id = ? AND mo.shop_id = ?',
                 [$orderId, $shopId]
             );
@@ -77,6 +88,9 @@ class ManualOrderController {
             $order['tax'] = (float)$order['tax'];
             $order['sale_id'] = $order['sale_id'] !== null ? (int)$order['sale_id'] : null;
             $order['created_by'] = (int)$order['created_by'];
+            $order['sale_final_amount'] = $order['sale_final_amount'] !== null ? (float)$order['sale_final_amount'] : null;
+            $order['sale_paid_amount'] = $order['sale_paid_amount'] !== null ? (float)$order['sale_paid_amount'] : null;
+            $order['current_sale_due'] = $order['current_sale_due'] !== null ? (float)$order['current_sale_due'] : null;
 
             if ($order['customer_id'] !== null) {
                 $order['customer_name'] = $order['customer_name_joined'] ?: $order['customer_name'];

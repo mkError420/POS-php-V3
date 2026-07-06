@@ -58,6 +58,7 @@ require_once __DIR__ . '/controllers/AnalyticsController.php';
 require_once __DIR__ . '/controllers/HeldBillController.php';
 require_once __DIR__ . '/controllers/ManualOrderController.php';
 require_once __DIR__ . '/controllers/OtherController.php';
+require_once __DIR__ . '/controllers/OtherSalesController.php';
 
 // Parse Request URI and Method
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -247,6 +248,8 @@ $routes = [
         '/^manual-orders\/(\d+)$/' => function($args) { ManualOrderController::getManualOrder($args[0]); },
         // Other Costs
         '/^other-costs$/' => function() { OtherController::listOtherCosts(); },
+        // Other Sales
+        '/^other-sales$/' => function() { OtherSalesController::listOtherSales(); },
         // Wastages
         '/^wastages$/' => function() { OtherController::listWastages(); },
         // Returns
@@ -287,6 +290,8 @@ $routes = [
         '/^manual-orders\/sales\/(\d+)\/pay-due$/' => function($args, $data) { ManualOrderController::payManualOrderSaleDue($args[0], $data); },
         // Other Costs
         '/^other-costs$/' => function($args, $data) { OtherController::createOtherCost($data); },
+        // Other Sales
+        '/^other-sales$/' => function($args, $data) { OtherSalesController::createOtherSale($data); },
         // Wastages
         '/^wastages$/' => function($args, $data) { OtherController::createWastage($data); },
         // Returns
@@ -316,6 +321,8 @@ $routes = [
         '/^manual-orders\/(\d+)$/' => function($args, $data) { ManualOrderController::updateManualOrder($args[0], $data); },
         // Other Costs
         '/^other-costs\/(\d+)$/' => function($args, $data) { OtherController::updateOtherCost($args[0], $data); },
+        // Other Sales
+        '/^other-sales\/(\d+)$/' => function($args, $data) { OtherSalesController::updateOtherSale($args[0], $data); },
         // Shops
         '/^shops\/my-shop$/' => function($args, $data) { OtherController::updateMyShop($data); },
         '/^shops\/(\d+)\/status$/' => function($args, $data) { OtherController::updateShopStatus($args[0], $data); },
@@ -344,6 +351,8 @@ $routes = [
         '/^manual-orders\/(\d+)$/' => function($args) { ManualOrderController::deleteManualOrder($args[0]); },
         // Other Costs
         '/^other-costs\/(\d+)$/' => function($args) { OtherController::deleteOtherCost($args[0]); },
+        // Other Sales
+        '/^other-sales\/(\d+)$/' => function($args) { OtherSalesController::deleteOtherSale($args[0]); },
         // Wastages
         '/^wastages\/(\d+)$/' => function($args) { OtherController::deleteWastage($args[0]); },
         // Returns

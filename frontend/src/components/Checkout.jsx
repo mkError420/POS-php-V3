@@ -19,7 +19,7 @@ const createNewSaleTab = (index) => ({
   redeemPoints: 0, // Loyalty points to redeem
 });
 
-export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill = null, onClearResumedHeldBill = () => {} }) {
+export default function Checkout({ onHeldBillsChange = () => { }, resumedHeldBill = null, onClearResumedHeldBill = () => { } }) {
   // --- STATE MANAGEMENT ---
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -99,22 +99,22 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
   }, [activeTab?.selectedCustomerId, customers]);
 
   // --- API FETCH LOGIC ---
-  
+
   // 1. Fetch products matching search string
   const fetchProducts = async (searchTerm = '') => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const url = searchTerm 
+      const url = searchTerm
         ? `${API_BASE_URL}/products?search=${encodeURIComponent(searchTerm)}`
         : `${API_BASE_URL}/products?latest=10`;
-      
+
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (!response.ok) throw new Error('Failed to fetch products.');
       const data = await response.json();
       setProducts(data);
@@ -232,13 +232,13 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
   // Auto-focus barcode reader input when active
   useEffect(() => {
     if (!autoFocusBarcode) return;
-    
+
     const keepFocus = () => {
       // If modal is open, do not steal focus
       if (receipt || showHeldBillsModal || showHoldBillModal) {
         return;
       }
-      
+
       const active = document.activeElement;
       if (
         active &&
@@ -247,19 +247,19 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
       ) {
         return; // Cashier is currently editing another field
       }
-      
+
       if (barcodeInputRef.current) {
         barcodeInputRef.current.focus();
       }
     };
 
     keepFocus();
-    
+
     // Add event listener to capture click events to recover focus
     const handleDocumentClick = () => {
       setTimeout(keepFocus, 100);
     };
-    
+
     document.addEventListener('click', handleDocumentClick);
     return () => {
       document.removeEventListener('click', handleDocumentClick);
@@ -267,7 +267,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
   }, [autoFocusBarcode, receipt, showHeldBillsModal, showHoldBillModal]);
 
   // --- HELPER FUNCTIONS ---
-  
+
   const triggerAlert = (type, message) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 5000);
@@ -313,7 +313,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
   const handleBarcodeScan = async (barcode) => {
     if (!barcode || !barcode.trim()) return;
     const trimmedBarcode = barcode.trim();
-    
+
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
@@ -322,13 +322,13 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (!response.ok) throw new Error('Barcode lookup failed.');
       const data = await response.json();
-      
+
       // Find a product with the exact SKU
       const exactMatch = data.find(p => p.sku.toLowerCase() === trimmedBarcode.toLowerCase());
-      
+
       if (exactMatch) {
         if (exactMatch.stock_quantity <= 0) {
           playBeepSound(false);
@@ -636,7 +636,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
             throw new Error(customerData.error || 'Failed to update customer profile.');
           }
         }
-        
+
         // Refresh customer list in background so select dropdown options stay current
         await fetchCustomers();
       }
@@ -722,7 +722,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
         return newTabs;
       });
       setMobileCartOpen(false);
-      
+
       // Refresh local product stock list
       fetchProducts(search);
 
@@ -780,7 +780,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
       if (!response.ok) throw new Error(resData.error || 'Failed to hold bill.');
 
       triggerAlert('success', 'Bill held successfully!');
-      
+
       // Reset the current tab
       setSaleTabs(prev => {
         const newTabs = [...prev];
@@ -828,7 +828,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
 
       for (const item of heldItems) {
         let productObj = products.find(p => p.id === item.product_id);
-        
+
         if (!productObj) {
           try {
             const token = localStorage.getItem('token');
@@ -978,7 +978,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
     }
     const tabIndexToClose = saleTabs.findIndex(t => t.id === tabIdToClose);
     if (tabIndexToClose === -1) return;
-    
+
     const newTabs = saleTabs.filter(t => t.id !== tabIdToClose);
     setSaleTabs(newTabs);
 
@@ -991,12 +991,11 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
 
   return (
     <div className="relative h-full flex flex-col">
-      
+
       {/* 1. Alerts Banner */}
       {alert && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-lg flex items-center space-x-3 transition-all ${
-          alert.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
-        }`}>
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-lg flex items-center space-x-3 transition-all ${alert.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
+          }`}>
           <span className="text-sm font-semibold">{alert.message}</span>
         </div>
       )}
@@ -1031,11 +1030,10 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
         {saleTabs.map(tab => (
           <div
             key={tab.id}
-            className={`flex items-center space-x-2 py-2 px-4 border-b-2 cursor-pointer transition-all duration-200 ${
-              activeTabId === tab.id
+            className={`flex items-center space-x-2 py-2 px-4 border-b-2 cursor-pointer transition-all duration-200 ${activeTabId === tab.id
                 ? 'border-indigo-600 text-indigo-600 font-semibold bg-indigo-50/50'
                 : 'border-transparent text-slate-500 hover:bg-slate-100'
-            }`}
+              }`}
             onClick={() => setActiveTabId(tab.id)}
           >
             <span>{tab.name}</span>
@@ -1058,10 +1056,10 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
       </div>
       {/* 3. Split Screen Flex Layout */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-hidden min-h-0">
-        
+
         {/* Left Side: Product Grid (2 columns on Desktop) */}
         <div className="lg:col-span-2 flex flex-col overflow-hidden">
-          
+
           {/* Search & Barcode Scan Console */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             {/* Search Input */}
@@ -1077,13 +1075,13 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
-            
+
             {/* Barcode Scanner Console */}
             <div className="relative flex items-center bg-slate-900 border border-slate-800 text-white rounded-xl shadow-sm px-3.5 py-3 overflow-hidden group">
               {autoFocusBarcode && !receipt && !showHeldBillsModal && !showHoldBillModal && (
                 <div className="laser-line animate-laser-scan"></div>
               )}
-              
+
               <div className="flex items-center space-x-2.5 w-full z-10">
                 {/* Barcode Icon */}
                 <div className="relative flex-shrink-0 text-rose-500 group-hover:text-rose-400 animate-pulse">
@@ -1091,7 +1089,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5v14M7 5v14M11 5v14M14 5v14M17 5v14M21 5v14" />
                   </svg>
                 </div>
-                
+
                 {/* Scanner Input */}
                 <input
                   ref={barcodeInputRef}
@@ -1102,16 +1100,15 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
                   onKeyDown={handleBarcodeKeydown}
                   className="bg-transparent text-white placeholder-slate-500 border-none outline-none focus:ring-0 w-full text-xs font-semibold p-0"
                 />
-                
+
                 {/* Auto-focus Status Indicator / Toggle */}
                 <button
                   type="button"
                   onClick={() => setAutoFocusBarcode(!autoFocusBarcode)}
-                  className={`flex-shrink-0 text-[9px] font-extrabold px-2 py-1 rounded transition-all tracking-wider ${
-                    autoFocusBarcode 
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' 
+                  className={`flex-shrink-0 text-[9px] font-extrabold px-2 py-1 rounded transition-all tracking-wider ${autoFocusBarcode
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
                       : 'bg-slate-800 text-slate-400 border border-slate-700'
-                  }`}
+                    }`}
                   title={autoFocusBarcode ? "Click to switch to manual mode" : "Click to switch to auto-focus scanner mode"}
                 >
                   {autoFocusBarcode ? "AUTO" : "MANUAL"}
@@ -1152,7 +1149,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
                         return (
                           <tr key={product.id} className="hover:bg-slate-50/50 transition-colors">
                             <td className="p-3 pl-4 font-mono text-xs font-bold text-slate-500">{product.sku}</td>
-                            <td 
+                            <td
                               className="p-3 font-semibold text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
                               onClick={() => !isOutOfStock && addToCart(product)}
                               title={isOutOfStock ? 'Out of stock' : 'Click to add to cart'}
@@ -1161,11 +1158,10 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
                             </td>
                             <td className="p-3 text-right font-extrabold text-slate-700">৳{parseFloat(product.price).toFixed(2)}</td>
                             <td className="p-3 text-center">
-                              <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                                remainingQty <= product.low_stock_threshold
+                              <span className={`px-2 py-0.5 rounded text-xs font-bold ${remainingQty <= product.low_stock_threshold
                                   ? 'bg-rose-50 text-rose-600 border border-rose-100'
                                   : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                              }`}>
+                                }`}>
                                 {remainingQty} left
                               </span>
                             </td>
@@ -1518,7 +1514,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
                   </svg>
                   <span className="text-sm font-bold tracking-tight">Checkout Completed</span>
                 </div>
-                
+
                 <h3 className="text-lg font-extrabold text-slate-800">Print Receipt for {activeTab?.name || 'Sale'}</h3>
                 <p className="text-xs text-slate-500 mt-1">Transaction recorded successfully. Preview and choose formatting layout below:</p>
 
@@ -1529,24 +1525,22 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
                     <button
                       type="button"
                       onClick={() => { setPreviewMode('thermal'); }}
-                      className={`py-2 text-xs font-semibold rounded-lg transition-all ${
-                        previewMode === 'thermal' 
-                          ? 'bg-white text-indigo-700 shadow-sm' 
+                      className={`py-2 text-xs font-semibold rounded-lg transition-all ${previewMode === 'thermal'
+                          ? 'bg-white text-indigo-700 shadow-sm'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/50'
-                      }`}
+                        }`}
                     >
-                      Thermal (80mm) 
+                      Thermal (80mm)
                     </button>
                     <button
                       type="button"
                       onClick={() => setPreviewMode('regular')}
-                      className={`py-2 text-xs font-semibold rounded-lg transition-all ${
-                        previewMode === 'regular' 
-                          ? 'bg-white text-indigo-700 shadow-sm' 
+                      className={`py-2 text-xs font-semibold rounded-lg transition-all ${previewMode === 'regular'
+                          ? 'bg-white text-indigo-700 shadow-sm'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/50'
-                      }`}
+                        }`}
                     >
-                      Regular (A4) 
+                      Regular (A4)
                     </button>
                   </div>
                 </div>
@@ -1612,7 +1606,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
               </div>
               <p style={{ margin: '4px 0 0 0', fontSize: '9px', fontWeight: 'bold', letterSpacing: '0.05em' }}>*** TRANSACTION RECEIPT ***</p>
             </div>
-            
+
             <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '4px 0', margin: '8px 0', fontSize: '9px', lineHeight: '1.3' }}>
               <div><strong>Sale ID:</strong> #{receipt.sale_id}</div>
               <div><strong>Date:</strong> {receipt.created_at}</div>
@@ -1925,7 +1919,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
               </button>
               <button
                 type="button"
-                onClick={() => setShowHeldBillsModal(false)} 
+                onClick={() => setShowHeldBillsModal(false)}
                 className="text-slate-400 hover:text-slate-600"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1954,8 +1948,8 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
                     const isDueTracker = itemsList.length === 0;
 
                     return (
-                      <div 
-                        key={bill.id} 
+                      <div
+                        key={bill.id}
                         className="p-4 border border-slate-200 rounded-xl hover:border-indigo-300 transition-colors bg-slate-50/50 flex flex-col sm:flex-row justify-between sm:items-center gap-4 text-left"
                       >
                         <div className="space-y-1">
@@ -2034,7 +2028,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
 
   // --- SUB-COMPONENT: CART PANEL DETAILS ---
   function renderCartPanelContent() {
-    if (!activeTab) return null; 
+    if (!activeTab) return null;
 
     return (
       <div className="flex flex-col h-full overflow-hidden">
@@ -2068,118 +2062,118 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
               Customer Details
             </h4>
 
-{activeTab.selectedCustomerId && (() => {
-               const selected = customers.find(c => c.id === parseInt(activeTab.selectedCustomerId));
-               const balance = parseFloat(selected?.due_balance || 0);
-               const reduceDue = parseFloat(activeTab.reduceDueAmount || 0);
-               if (balance > 0) {
-                 return (
-                   <div className="bg-rose-50 border border-rose-100 rounded-lg p-2 space-y-2 text-xs text-rose-700">
-                     <div className="flex justify-between">
-                       <span className="font-medium">Outstanding Due Balance:</span>
-                       <span className="font-bold">৳{balance.toFixed(2)}</span>
-                     </div>
-                     <div className="flex justify-between items-center pt-1 border-t border-rose-200">
-                       <span className="font-medium">Collect Due Payment:</span>
-                       <div className="flex items-center space-x-2">
-                         <input
-                           type="number"
-                           min="0"
-                           step="0.01"
-                           max={balance}
-                           value={reduceDue > 0 ? reduceDue : ''}
-                           onChange={(e) => {
-                             const val = parseFloat(e.target.value) || 0;
-                             const cappedVal = Math.min(val, balance);
-                             updateActiveTabState('reduceDueAmount', cappedVal);
-                             updateActiveTabState('paidAmount', '');
-                             updateActiveTabState('isPaidTouched', false);
-                           }}
-                           placeholder="0.00"
-                           className="w-24 border border-rose-300 rounded px-2 py-1 text-right font-semibold text-rose-700 bg-white focus:outline-none focus:ring-1 focus:ring-rose-500"
-                         />
-                         <span className="text-[11px] font-bold">৳</span>
-                       </div>
-                     </div>
-                     {reduceDue > 0 && (
-                       <div className="text-[10px] text-rose-600 text-right">
-                         Applied: ৳{reduceDue.toFixed(2)} from due balance
-                       </div>
-                     )}
-                   </div>
-                 );
-               }
-               return null;
-             })()}
-
-              {/* Loyalty Points Section */}
-              {loyaltyEnabled && activeTab.selectedCustomerId && (() => {
-                const selected = customers.find(c => c.id === parseInt(activeTab.selectedCustomerId));
-                const availablePoints = selected?.loyalty_points || 0;
-                const pointsDiscountVal = (activeTab.redeemPoints || 0) * loyaltyPointValue;
-                
+            {activeTab.selectedCustomerId && (() => {
+              const selected = customers.find(c => c.id === parseInt(activeTab.selectedCustomerId));
+              const balance = parseFloat(selected?.due_balance || 0);
+              const reduceDue = parseFloat(activeTab.reduceDueAmount || 0);
+              if (balance > 0) {
                 return (
-                  <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-2.5 space-y-2 text-xs text-indigo-850">
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold">Loyalty Program Active</span>
-                      <span className="bg-indigo-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                        {availablePoints} Points Available
-                      </span>
+                  <div className="bg-rose-50 border border-rose-100 rounded-lg p-2 space-y-2 text-xs text-rose-700">
+                    <div className="flex justify-between">
+                      <span className="font-medium">Outstanding Due Balance:</span>
+                      <span className="font-bold">৳{balance.toFixed(2)}</span>
                     </div>
-                    
-                    <div className="flex justify-between items-center text-[10px] text-indigo-700 font-medium">
-                      <span>Redeem value: ৳{loyaltyPointValue.toFixed(2)} / pt</span>
-                      <span>Total Value: ৳{(availablePoints * loyaltyPointValue).toFixed(2)}</span>
-                    </div>
-                    
-                    {availablePoints > 0 && (
-                      <div className="flex justify-between items-center pt-2 border-t border-indigo-200">
-                        <span className="font-semibold">Redeem Points:</span>
-                        <div className="flex items-center space-x-1.5">
-                          <input
-                            type="number"
-                            min="0"
-                            max={availablePoints}
-                            value={activeTab.redeemPoints > 0 ? activeTab.redeemPoints : ''}
-                            onChange={(e) => {
-                              let val = parseInt(e.target.value, 10) || 0;
-                              if (val < 0) val = 0;
-                              if (val > availablePoints) val = availablePoints;
-                              
-                              const maxPointsToCover = Math.ceil(getSubtotal() / loyaltyPointValue);
-                              if (val > maxPointsToCover) val = maxPointsToCover;
-                              
-                              updateActiveTabState('redeemPoints', val);
-                              updateActiveTabState('paidAmount', '');
-                              updateActiveTabState('isPaidTouched', false);
-                            }}
-                            placeholder="0"
-                            className="w-16 border border-indigo-300 rounded px-1.5 py-0.5 text-right font-bold text-indigo-700 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const maxPointsToCover = Math.ceil(getSubtotal() / loyaltyPointValue);
-                              const val = Math.min(availablePoints, maxPointsToCover);
-                              updateActiveTabState('redeemPoints', val);
-                              updateActiveTabState('paidAmount', '');
-                              updateActiveTabState('isPaidTouched', false);
-                            }}
-                            className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-extrabold px-1.5 py-0.5 rounded border border-indigo-200 text-[10px] transition-colors"
-                          >
-                            MAX
-                          </button>
-                        </div>
+                    <div className="flex justify-between items-center pt-1 border-t border-rose-200">
+                      <span className="font-medium">Collect Due Payment:</span>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          max={balance}
+                          value={reduceDue > 0 ? reduceDue : ''}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            const cappedVal = Math.min(val, balance);
+                            updateActiveTabState('reduceDueAmount', cappedVal);
+                            updateActiveTabState('paidAmount', '');
+                            updateActiveTabState('isPaidTouched', false);
+                          }}
+                          placeholder="0.00"
+                          className="w-24 border border-rose-300 rounded px-2 py-1 text-right font-semibold text-rose-700 bg-white focus:outline-none focus:ring-1 focus:ring-rose-500"
+                        />
+                        <span className="text-[11px] font-bold">৳</span>
                       </div>
-                    )}
-                    {activeTab.redeemPoints > 0 && (
-                      <div className="text-[10px] text-emerald-600 font-bold text-right">
-                        Discount Applied: -৳{pointsDiscountVal.toFixed(2)}
+                    </div>
+                    {reduceDue > 0 && (
+                      <div className="text-[10px] text-rose-600 text-right">
+                        Applied: ৳{reduceDue.toFixed(2)} from due balance
                       </div>
                     )}
                   </div>
                 );
-              })()}
+              }
+              return null;
+            })()}
+
+            {/* Loyalty Points Section */}
+            {loyaltyEnabled && activeTab.selectedCustomerId && (() => {
+              const selected = customers.find(c => c.id === parseInt(activeTab.selectedCustomerId));
+              const availablePoints = selected?.loyalty_points || 0;
+              const pointsDiscountVal = (activeTab.redeemPoints || 0) * loyaltyPointValue;
+
+              return (
+                <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-2.5 space-y-2 text-xs text-indigo-850">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold">Loyalty Program Active</span>
+                    <span className="bg-indigo-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      {availablePoints} Points Available
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-[10px] text-indigo-700 font-medium">
+                    <span>Redeem value: ৳{loyaltyPointValue.toFixed(2)} / pt</span>
+                    <span>Total Value: ৳{(availablePoints * loyaltyPointValue).toFixed(2)}</span>
+                  </div>
+
+                  {availablePoints > 0 && (
+                    <div className="flex justify-between items-center pt-2 border-t border-indigo-200">
+                      <span className="font-semibold">Redeem Points:</span>
+                      <div className="flex items-center space-x-1.5">
+                        <input
+                          type="number"
+                          min="0"
+                          max={availablePoints}
+                          value={activeTab.redeemPoints > 0 ? activeTab.redeemPoints : ''}
+                          onChange={(e) => {
+                            let val = parseInt(e.target.value, 10) || 0;
+                            if (val < 0) val = 0;
+                            if (val > availablePoints) val = availablePoints;
+
+                            const maxPointsToCover = Math.ceil(getSubtotal() / loyaltyPointValue);
+                            if (val > maxPointsToCover) val = maxPointsToCover;
+
+                            updateActiveTabState('redeemPoints', val);
+                            updateActiveTabState('paidAmount', '');
+                            updateActiveTabState('isPaidTouched', false);
+                          }}
+                          placeholder="0"
+                          className="w-16 border border-indigo-300 rounded px-1.5 py-0.5 text-right font-bold text-indigo-700 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const maxPointsToCover = Math.ceil(getSubtotal() / loyaltyPointValue);
+                            const val = Math.min(availablePoints, maxPointsToCover);
+                            updateActiveTabState('redeemPoints', val);
+                            updateActiveTabState('paidAmount', '');
+                            updateActiveTabState('isPaidTouched', false);
+                          }}
+                          className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-extrabold px-1.5 py-0.5 rounded border border-indigo-200 text-[10px] transition-colors"
+                        >
+                          MAX
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {activeTab.redeemPoints > 0 && (
+                    <div className="text-[10px] text-emerald-600 font-bold text-right">
+                      Discount Applied: -৳{pointsDiscountVal.toFixed(2)}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="grid grid-cols-2 gap-1.5">
               <div className="col-span-1">
@@ -2217,7 +2211,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
                     <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto divide-y divide-slate-100">
                       {suggestions.map(c => (
                         <div
-                          key={c.id}                          onClick={() => updateActiveTabState('selectedCustomerId', c.id)}
+                          key={c.id} onClick={() => updateActiveTabState('selectedCustomerId', c.id)}
                           className="p-2 px-3 hover:bg-indigo-50 cursor-pointer text-left transition-colors"
                         >
                           <div className="text-xs font-semibold text-slate-800">{c.name}</div>
@@ -2255,20 +2249,20 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
                   );
                 })()
               ))) && (
-              <label className="flex items-center space-x-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={activeTab.syncToDirectory}
-                  onChange={(e) => updateActiveTabState('syncToDirectory', e.target.checked)}
-                  className="w-3.5 h-3.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                />
-                <span className="text-xs text-indigo-600 font-medium">
-                  {activeTab.selectedCustomerId === ''
-                    ? 'Save as new customer in directory' 
-                    : 'Sync profile updates to directory'}
-                </span>
-              </label>
-            )}
+                <label className="flex items-center space-x-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={activeTab.syncToDirectory}
+                    onChange={(e) => updateActiveTabState('syncToDirectory', e.target.checked)}
+                    className="w-3.5 h-3.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                  />
+                  <span className="text-xs text-indigo-600 font-medium">
+                    {activeTab.selectedCustomerId === ''
+                      ? 'Save as new customer in directory'
+                      : 'Sync profile updates to directory'}
+                  </span>
+                </label>
+              )}
           </div>
         </div>
 
@@ -2314,7 +2308,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
                       +
                     </button>
                   </div>
-                  
+
                   {/* Clear line item */}
                   <button
                     onClick={() => removeFromCart(item.id)}
@@ -2343,7 +2337,7 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
                 <span>Tax ({(taxRate * 100).toString()}%):</span>
                 <span className="font-semibold">৳{getTax().toFixed(2)}</span>
               </div>
-              
+
               {/* Discount Manual Inputs */}
               <div className="flex justify-between items-center col-span-1">
                 <span>Discount (%):</span>
@@ -2428,11 +2422,10 @@ export default function Checkout({ onHeldBillsChange = () => {}, resumedHeldBill
                     key={method}
                     type="button"
                     onClick={() => updateActiveTabState('paymentMethod', method)}
-                    className={`py-1 px-1.5 rounded text-[10px] font-semibold border text-center transition-all ${
-                      activeTab?.paymentMethod === method
+                    className={`py-1 px-1.5 rounded text-[10px] font-semibold border text-center transition-all ${activeTab?.paymentMethod === method
                         ? 'bg-slate-600 border-indigo-650 text-white shadow-sm'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     {method === 'mobile_pay' ? 'Mobile' : method.charAt(0).toUpperCase() + method.slice(1)}
                   </button>
