@@ -50,7 +50,7 @@ class SaleController {
 
                 // SELECT FOR UPDATE to lock product row
                 $stmt = DB::query(
-                    'SELECT id, name, price, stock_quantity, low_stock_threshold FROM products WHERE id = ? AND shop_id = ? FOR UPDATE',
+                    'SELECT id, name, price, cost_price, stock_quantity, low_stock_threshold FROM products WHERE id = ? AND shop_id = ? FOR UPDATE',
                     [$productId, $shopId]
                 );
                 $product = $stmt->fetch();
@@ -71,6 +71,7 @@ class SaleController {
                     'product_id' => $productId,
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
+                    'cost_price' => (float)$product['cost_price'],
                     'subtotal' => $subtotal
                 ];
 
@@ -157,7 +158,9 @@ class SaleController {
             }
 
             $createdAtDatetime = date('Y-m-d H:i:s');
-            if (!empty($createdAt)) {
+            $userRole = Auth::$user['role'] ?? 'shop_staff';
+            $isShopAdmin = ($userRole === 'shop_admin' || $userRole === 'super_admin');
+            if ($isShopAdmin && !empty($createdAt)) {
                 $createdAtDatetime = date('Y-m-d H:i:s', strtotime($createdAt . ' ' . date('H:i:s')));
             }
 
@@ -229,9 +232,9 @@ class SaleController {
             // Save line items
             foreach ($validatedItems as $item) {
                 DB::query(
-                    'INSERT INTO sale_items (shop_id, sale_id, product_id, quantity, unit_price, subtotal) 
-                     VALUES (?, ?, ?, ?, ?, ?)',
-                    [$shopId, $saleId, $item['product_id'], $item['quantity'], $item['unit_price'], $item['subtotal']]
+                    'INSERT INTO sale_items (shop_id, sale_id, product_id, quantity, unit_price, cost_price, subtotal) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    [$shopId, $saleId, $item['product_id'], $item['quantity'], $item['unit_price'], $item['cost_price'], $item['subtotal']]
                 );
             }
 
@@ -389,7 +392,7 @@ class SaleController {
 
             // Fetch sale items
             $stmt = DB::query(
-                "SELECT si.*, p.name as product_name, p.sku as product_sku, p.cost_price 
+                "SELECT si.*, p.name as product_name, p.sku as product_sku, COALESCE(si.cost_price, p.cost_price, 0) as cost_price 
                  FROM sale_items si
                  JOIN products p ON si.product_id = p.id
                  WHERE si.sale_id = ? AND si.shop_id = ?",

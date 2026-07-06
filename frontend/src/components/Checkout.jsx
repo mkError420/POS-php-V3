@@ -1146,6 +1146,7 @@ export default function Checkout({ onHeldBillsChange = () => { }, resumedHeldBil
                       <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
                         <th className="p-3 pl-4 w-24">SKU</th>
                         <th className="p-3">Product Name</th>
+                        <th className="p-3 text-right">Cost Price</th>
                         <th className="p-3 text-right">Price</th>
                         <th className="p-3 text-center">Stock</th>
                         <th className="p-3 text-center">Actions</th>
@@ -1167,6 +1168,7 @@ export default function Checkout({ onHeldBillsChange = () => { }, resumedHeldBil
                             >
                               {product.name}
                             </td>
+                            <td className="p-3 text-right text-slate-500 font-medium">৳{parseFloat(product.cost_price || 0).toFixed(2)}</td>
                             <td className="p-3 text-right font-extrabold text-slate-700">৳{parseFloat(product.price).toFixed(2)}</td>
                             <td className="p-3 text-center">
                               <span className={`px-2 py-0.5 rounded text-xs font-bold ${remainingQty <= product.low_stock_threshold
@@ -2076,7 +2078,8 @@ export default function Checkout({ onHeldBillsChange = () => { }, resumedHeldBil
                 type="date"
                 value={activeTab.saleDate || new Date().toISOString().slice(0, 10)}
                 onChange={(e) => updateActiveTabState('saleDate', e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-lg p-1.5 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium text-slate-700"
+                disabled={!(currentUser?.role === 'shop_admin' || currentUser?.role === 'super_admin')}
+                className="w-full bg-white border border-slate-200 rounded-lg p-1.5 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium text-slate-700 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
               />
             </div>
           </div>
@@ -2316,7 +2319,8 @@ export default function Checkout({ onHeldBillsChange = () => { }, resumedHeldBil
                   {activeTab.cart.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50/40 transition-colors">
                       <td className="p-2 pl-3 font-semibold text-slate-800 max-w-[120px] truncate" title={item.name}>
-                        {item.name}
+                        <div className="truncate">{item.name}</div>
+                        <div className="text-[10px] text-slate-450 font-normal">Cost: ৳{parseFloat(item.cost_price || 0).toFixed(2)}</div>
                       </td>
                       <td className="p-2 text-center">
                         <div className="inline-flex items-center border border-slate-200 rounded-lg bg-white overflow-hidden">

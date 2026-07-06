@@ -169,6 +169,7 @@ CREATE TABLE IF NOT EXISTS `sale_items` (
   `product_id` INT NOT NULL,
   `quantity` INT NOT NULL,
   `unit_price` DECIMAL(10,2) NOT NULL,
+  `cost_price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   `subtotal` DECIMAL(10,2) NOT NULL,
   PRIMARY KEY (`id`),
   INDEX `idx_sale_items_shop_sale` (`shop_id`, `sale_id`),

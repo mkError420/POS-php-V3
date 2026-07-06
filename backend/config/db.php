@@ -213,6 +213,11 @@ class DB {
                 $pdo->exec("ALTER TABLE `purchase_orders` ADD COLUMN `due_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00");
             }
 
+            // Check if cost_price column exists on sale_items table
+            if ($tableExists('sale_items') && !$columnExists('sale_items', 'cost_price')) {
+                $pdo->exec("ALTER TABLE `sale_items` ADD COLUMN `cost_price` DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+            }
+
             // Create supplier_returns table if not exists
             $pdo->exec("
                 CREATE TABLE IF NOT EXISTS `supplier_returns` (
