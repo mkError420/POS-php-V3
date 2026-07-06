@@ -106,21 +106,36 @@ export default function Sidebar({
             items: [
               { label: 'POS Checkout', path: '/checkout', icon: <POSIcon /> },
               { label: 'Held Bills', path: '/held-bills', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, badge: heldBillsCount },
-              { label: 'Manual Orders', path: '/manual-orders', icon: <ManualOrdersIcon /> },
-              { label: 'My Sales Log', path: '/sales', icon: <ReportsIcon /> },
+              { label: 'Manual Orders Entry', path: '/manual-orders', icon: <ManualOrdersIcon /> },
+              { label: 'Sales History', path: '/sales', icon: <ReportsIcon /> },
               { label: 'Product Returns', path: '/returns', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 15v-3a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m-9 5h1a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2z" /></svg> }
             ]
           },
           {
-            section: 'Inventory & Directory',
+            section: 'Inventory & Wastage',
             items: [
-              { label: 'Inventory check', path: '/products', icon: <InventoryIcon /> },
-              { label: 'Customers', path: '/customers', icon: <UsersIcon /> }
+              { label: 'Inventory Catalog', path: '/products', icon: <InventoryIcon /> },
+              { label: 'Wastage Logs', path: '/wastage', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> }
             ]
           },
           {
-            section: 'Preferences',
+            section: 'Directory',
             items: [
+              { label: 'Suppliers Directory', path: '/suppliers', icon: <SuppliersIcon /> },
+              { label: 'Customer Directory', path: '/customers', icon: <UsersIcon /> }
+            ]
+          },
+          {
+            section: 'Financials',
+            items: [
+              { label: 'Other Costs', path: '/other-cost', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+              { label: 'Total Revenue', path: '/total-revenue', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg> }
+            ]
+          },
+          {
+            section: 'Management',
+            items: [
+              { label: 'Manage Staff', path: '/staff', icon: <UsersIcon /> },
               { label: 'Settings', path: '/settings', icon: <SettingsIcon /> }
             ]
           }
