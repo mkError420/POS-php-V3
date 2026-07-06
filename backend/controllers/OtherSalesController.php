@@ -73,9 +73,16 @@ class OtherSalesController {
         // Calculate total amount
         $amount = 0;
         foreach ($items as &$item) {
-            $qty = isset($item['quantity']) ? (int)$item['quantity'] : 1;
+            $qty = isset($item['quantity']) ? (float)$item['quantity'] : 1;
             $price = isset($item['unit_price']) ? (float)$item['unit_price'] : 0;
-            $subtotal = $qty * $price;
+            $cat = $item['category'] ?? '';
+            
+            if ($cat === 'Mobile Banking Services') {
+                $subtotal = $price; // Only the commission/fee is revenue
+            } else {
+                $subtotal = $qty * $price;
+            }
+            
             $item['subtotal'] = $subtotal; // ensure subtotal is correctly calculated on backend
             $amount += $subtotal;
         }
@@ -129,9 +136,16 @@ class OtherSalesController {
 
         $amount = 0;
         foreach ($items as &$item) {
-            $qty = isset($item['quantity']) ? (int)$item['quantity'] : 1;
+            $qty = isset($item['quantity']) ? (float)$item['quantity'] : 1;
             $price = isset($item['unit_price']) ? (float)$item['unit_price'] : 0;
-            $subtotal = $qty * $price;
+            $cat = $item['category'] ?? '';
+            
+            if ($cat === 'Mobile Banking Services') {
+                $subtotal = $price;
+            } else {
+                $subtotal = $qty * $price;
+            }
+            
             $item['subtotal'] = $subtotal;
             $amount += $subtotal;
         }

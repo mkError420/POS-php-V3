@@ -9,6 +9,17 @@ export default function Inventory() {
   // Tab navigation state
   const [activeTab, setActiveTab] = useState('inventory');
 
+  // Stock & Sales History state
+  const [selectedHistoryProductId, setSelectedHistoryProductId] = useState('');
+  const [historyStartDate, setHistoryStartDate] = useState('');
+  const [historyEndDate, setHistoryEndDate] = useState('');
+  const [historyData, setHistoryData] = useState(null);
+  const [historyViewTab, setHistoryViewTab] = useState('daily');
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState(null);
+  const [historySearchQuery, setHistorySearchQuery] = useState('');
+  const [isHistoryDropdownOpen, setIsHistoryDropdownOpen] = useState(false);
+
   const [products, setProducts] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -108,6 +119,34 @@ export default function Inventory() {
       fetchShops();
     }
   }, [isSuperAdmin]);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (activeTab !== 'history' || !selectedHistoryProductId) return;
+      setHistoryLoading(true);
+      setHistoryError(null);
+      try {
+        const token = localStorage.getItem('token');
+        let url = `${API_BASE_URL}/products/${selectedHistoryProductId}/stock-sales-history?`;
+        if (historyStartDate) url += `start_date=${historyStartDate}&`;
+        if (historyEndDate) url += `end_date=${historyEndDate}&`;
+        const response = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch history.');
+        }
+        const data = await response.json();
+        setHistoryData(data);
+      } catch (err) {
+        setHistoryError(err.message);
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+    fetchHistory();
+  }, [activeTab, selectedHistoryProductId, historyStartDate, historyEndDate]);
 
   const triggerAlert = (type, message) => {
     setAlert({ type, message });
@@ -364,6 +403,15 @@ export default function Inventory() {
         >
           Adjustments
         </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${activeTab === 'history'
+            ? 'bg-white text-indigo-600 shadow-sm'
+            : 'text-slate-600 hover:text-slate-800'
+            }`}
+        >
+          Stock & Sales History
+        </button>
       </div>
 
       {/* Inventory Tab Content */}
@@ -607,7 +655,7 @@ export default function Inventory() {
                     <th className="p-4">Sale Price</th>
                     <th className="p-4">Stock</th>
                     <th className="p-4">Expiry</th>
-                    {!isSuperAdmin && <th className="p-4 text-center">Actions</th>}
+                    <th className="p-4 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
@@ -682,22 +730,33 @@ export default function Inventory() {
                             </span>
                           </td>
                           <td className="p-4">{expiryBadge}</td>
-                          {!isSuperAdmin && (
-                            <td className="p-4 text-center space-x-2">
-                              <button
-                                onClick={() => openEdit(product)}
-                                className="text-indigo-600 hover:text-indigo-900 font-semibold text-xs border border-indigo-100 hover:bg-indigo-50 px-2.5 py-1 rounded-lg transition-colors"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleDelete(product.id)}
-                                className="text-rose-600 hover:text-rose-900 font-semibold text-xs border border-rose-100 hover:bg-rose-50 px-2.5 py-1 rounded-lg transition-colors"
-                              >
-                                Delete
-                              </button>
-                            </td>
-                          )}
+                          <td className="p-4 text-center space-x-2">
+                             <button
+                               onClick={() => {
+                                 setSelectedHistoryProductId(product.id);
+                                 setActiveTab('history');
+                               }}
+                               className="text-emerald-600 hover:text-emerald-900 font-semibold text-xs border border-emerald-100 hover:bg-emerald-50 px-2.5 py-1 rounded-lg transition-colors"
+                             >
+                               History
+                             </button>
+                             {!isSuperAdmin && (
+                               <>
+                                 <button
+                                   onClick={() => openEdit(product)}
+                                   className="text-indigo-600 hover:text-indigo-900 font-semibold text-xs border border-indigo-100 hover:bg-indigo-50 px-2.5 py-1 rounded-lg transition-colors"
+                                 >
+                                   Edit
+                                 </button>
+                                 <button
+                                   onClick={() => handleDelete(product.id)}
+                                   className="text-rose-600 hover:text-rose-900 font-semibold text-xs border border-rose-100 hover:bg-rose-50 px-2.5 py-1 rounded-lg transition-colors"
+                                 >
+                                   Delete
+                                 </button>
+                               </>
+                             )}
+                           </td>
                         </tr>
                       );
                     })
@@ -1137,7 +1196,252 @@ export default function Inventory() {
       {activeTab === 'adjustments' && (
         <Adjustments />
       )}
+ 
+      {/* Stock & Sales History Tab Content */}
+      {activeTab === 'history' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-800">Stock & Sales History</h2>
+              <p className="text-sm text-slate-500">Track historical product movements, quantities sold, and remaining balance</p>
+            </div>
+          </div>
+ 
+          {/* Select Product & Filters Bar */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex-1 max-w-sm relative">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Select Product</label>
+              
+              {isHistoryDropdownOpen && (
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setIsHistoryDropdownOpen(false)}
+                />
+              )}
 
+              <div className="relative z-50">
+                <input
+                  type="text"
+                  placeholder="Search & select product..."
+                  value={isHistoryDropdownOpen ? historySearchQuery : (() => {
+                    const selectedProduct = products.find(p => String(p.id) === String(selectedHistoryProductId));
+                    return selectedProduct ? `${selectedProduct.name} (${selectedProduct.sku})` : '';
+                  })()}
+                  onChange={(e) => {
+                    setHistorySearchQuery(e.target.value);
+                    setIsHistoryDropdownOpen(true);
+                  }}
+                  onFocus={() => {
+                    setHistorySearchQuery('');
+                    setIsHistoryDropdownOpen(true);
+                  }}
+                  className="w-full border border-slate-200 rounded-lg p-2.5 pr-10 text-sm focus:ring-1 focus:ring-indigo-500 outline-none bg-white font-medium text-slate-700 shadow-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsHistoryDropdownOpen(!isHistoryDropdownOpen)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+
+              {isHistoryDropdownOpen && (
+                <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg z-50 divide-y divide-slate-100">
+                  {(() => {
+                    const filteredHistoryProducts = products.filter(p => 
+                      p.name.toLowerCase().includes(historySearchQuery.toLowerCase()) ||
+                      p.sku.toLowerCase().includes(historySearchQuery.toLowerCase())
+                    );
+                    
+                    if (filteredHistoryProducts.length === 0) {
+                      return <div className="p-3 text-sm text-slate-400 text-center">No products found</div>;
+                    }
+                    
+                    return filteredHistoryProducts.map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedHistoryProductId(p.id);
+                          setHistorySearchQuery('');
+                          setIsHistoryDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors font-medium block ${
+                          String(selectedHistoryProductId) === String(p.id) ? 'bg-indigo-50 text-indigo-700' : 'text-slate-705'
+                        }`}
+                      >
+                        <div className="font-bold">{p.name}</div>
+                        <div className="text-xs text-slate-400">SKU: {p.sku} | Stock: {p.stock_quantity} {p.unit || 'piece'}</div>
+                      </button>
+                    ));
+                  })()}
+                </div>
+              )}
+            </div>
+ 
+            <div className="flex flex-col sm:flex-row gap-4 items-end">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Start Date</label>
+                <input
+                  type="date"
+                  value={historyStartDate}
+                  onChange={(e) => setHistoryStartDate(e.target.value)}
+                  className="border border-slate-200 rounded-lg p-2 text-sm focus:ring-1 focus:ring-indigo-500 outline-none text-slate-700 font-medium"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">End Date</label>
+                <input
+                  type="date"
+                  value={historyEndDate}
+                  onChange={(e) => setHistoryEndDate(e.target.value)}
+                  className="border border-slate-200 rounded-lg p-2 text-sm focus:ring-1 focus:ring-indigo-500 outline-none text-slate-700 font-medium"
+                />
+              </div>
+              <button
+                onClick={() => { setHistoryStartDate(''); setHistoryEndDate(''); }}
+                className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-semibold rounded-lg transition-colors h-[38px] flex items-center justify-center"
+              >
+                Reset Filters
+              </button>
+            </div>
+          </div>
+ 
+          {/* Ledger Content */}
+          {!selectedHistoryProductId ? (
+            <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 font-medium">
+              Please select a product from the list above to view its stock and sales ledger.
+            </div>
+          ) : historyLoading ? (
+            <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">
+              <div className="flex justify-center items-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
+              </div>
+              <span className="text-sm font-semibold text-slate-500 mt-2 block">Loading ledger data...</span>
+            </div>
+          ) : historyError ? (
+            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 text-center text-rose-700 font-semibold">
+              Error: {historyError}
+            </div>
+          ) : historyData ? (
+            <div className="space-y-6">
+              {/* Top KPI Stats */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Stock</span>
+                  <div className="mt-2 flex items-baseline">
+                    <span className="text-3xl font-black text-slate-800">{historyData.current_stock}</span>
+                    <span className="text-xs text-slate-500 ml-2">units left</span>
+                  </div>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Sold (In Period)</span>
+                  <div className="mt-2 flex items-baseline">
+                    <span className="text-3xl font-black text-emerald-600">
+                      {historyData.daily.reduce((sum, d) => sum + d.qty_sold, 0)}
+                    </span>
+                    <span className="text-xs text-slate-500 ml-2">units sold</span>
+                  </div>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Net Stock Change</span>
+                  <div className="mt-2 flex items-baseline">
+                    <span className={`text-3xl font-black ${
+                      historyData.daily.reduce((sum, d) => sum + d.qty_change, 0) >= 0 ? 'text-indigo-600' : 'text-rose-600'
+                    }`}>
+                      {historyData.daily.reduce((sum, d) => sum + d.qty_change, 0) >= 0 ? '+' : ''}
+                      {historyData.daily.reduce((sum, d) => sum + d.qty_change, 0)}
+                    </span>
+                    <span className="text-xs text-slate-500 ml-2">units net</span>
+                  </div>
+                </div>
+              </div>
+ 
+              {/* History Sub Tabs */}
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs flex flex-col">
+                <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setHistoryViewTab('daily')}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        historyViewTab === 'daily' ? 'bg-slate-600 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      Daily History
+                    </button>
+                    <button
+                      onClick={() => setHistoryViewTab('monthly')}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        historyViewTab === 'monthly' ? 'bg-slate-600 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      Monthly History
+                    </button>
+                  </div>
+                </div>
+ 
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
+                        <th className="p-4">{historyViewTab === 'daily' ? 'Date' : 'Month'}</th>
+                        <th className="p-4 text-center">Quantity Sold</th>
+                        <th className="p-4 text-center">Net Change</th>
+                        <th className="p-4 text-right">Remaining Stock</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-sm">
+                      {historyViewTab === 'daily' ? (
+                        historyData.daily.length === 0 ? (
+                          <tr>
+                            <td colSpan="4" className="p-8 text-center text-slate-400 font-medium">
+                              No transactions or events recorded for this product in the selected period.
+                            </td>
+                          </tr>
+                        ) : (
+                          historyData.daily.map((d, index) => (
+                            <tr key={index} className="hover:bg-slate-50/20 transition-colors">
+                              <td className="p-4 font-semibold text-slate-700">{d.date}</td>
+                              <td className="p-4 text-center font-bold text-slate-600">{d.qty_sold}</td>
+                              <td className={`p-4 text-center font-bold ${d.qty_change >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                {d.qty_change >= 0 ? '+' : ''}{d.qty_change}
+                              </td>
+                              <td className="p-4 text-right font-black text-slate-800">{d.stock_left}</td>
+                            </tr>
+                          ))
+                        )
+                      ) : (
+                        historyData.monthly.length === 0 ? (
+                          <tr>
+                            <td colSpan="4" className="p-8 text-center text-slate-400 font-medium">
+                              No transactions or events recorded for this product in the selected period.
+                            </td>
+                          </tr>
+                        ) : (
+                          historyData.monthly.map((m, index) => (
+                            <tr key={index} className="hover:bg-slate-50/20 transition-colors">
+                              <td className="p-4 font-semibold text-slate-700">{m.month}</td>
+                              <td className="p-4 text-center font-bold text-slate-600">{m.qty_sold}</td>
+                              <td className={`p-4 text-center font-bold ${m.qty_change >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                {m.qty_change >= 0 ? '+' : ''}{m.qty_change}
+                              </td>
+                              <td className="p-4 text-right font-black text-slate-800">{m.stock_left}</td>
+                            </tr>
+                          ))
+                        )
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
+ 
     </div>
   );
 }

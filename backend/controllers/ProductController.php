@@ -623,4 +623,209 @@ class ProductController {
         }
         return false;
     }
+
+    public static function getProductStockSalesHistory($productId) {
+        Auth::authenticate();
+        Auth::enforceTenant();
+
+        $shopId = Auth::$shopId;
+        $productId = (int)$productId;
+        $startDate = $_GET['start_date'] ?? null;
+        $endDate = $_GET['end_date'] ?? null;
+
+        try {
+            // Verify product exists and belongs to the shop
+            $stmt = DB::query('SELECT name, sku, stock_quantity FROM products WHERE id = ? AND shop_id = ?', [$productId, $shopId]);
+            $product = $stmt->fetch();
+            if (!$product) {
+                Auth::jsonError('Product not found or access denied.', 404);
+            }
+
+            // Calculate future changes if end date is specified (for retrospective timeline starting point)
+            $futureChange = 0.0;
+            if (!empty($endDate)) {
+                $futureSql = "SELECT SUM(qty_change) AS total_future_change FROM (
+                    -- Sales
+                    SELECT -si.quantity AS qty_change, s.created_at AS event_date 
+                    FROM sale_items si JOIN sales s ON si.sale_id = s.id 
+                    WHERE si.product_id = ? AND si.shop_id = ?
+                    UNION ALL
+                    -- Purchases
+                    SELECT COALESCE(poi.quantity_received, poi.quantity_ordered) AS qty_change, COALESCE(po.received_date, po.created_at) AS event_date 
+                    FROM purchase_order_items poi JOIN purchase_orders po ON poi.purchase_order_id = po.id 
+                    WHERE poi.product_id = ? AND poi.shop_id = ? AND po.status = 'received'
+                    UNION ALL
+                    -- Customer Returns
+                    SELECT cr.quantity AS qty_change, cr.created_at AS event_date 
+                    FROM customer_returns cr 
+                    WHERE cr.product_id = ? AND cr.shop_id = ?
+                    UNION ALL
+                    -- Supplier Returns
+                    SELECT -sr.quantity AS qty_change, sr.created_at AS event_date 
+                    FROM supplier_returns sr 
+                    WHERE sr.product_id = ? AND sr.shop_id = ?
+                    UNION ALL
+                    -- Wastages
+                    SELECT -w.quantity AS qty_change, w.adjusted_at AS event_date 
+                    FROM wastages w 
+                    WHERE w.product_id = ? AND w.shop_id = ?
+                    UNION ALL
+                    -- Adjustments
+                    SELECT difference AS qty_change, created_at AS event_date 
+                    FROM inventory_adjustments 
+                    WHERE product_id = ? AND shop_id = ?
+                ) fut WHERE event_date > ?";
+                
+                $stmt = DB::query($futureSql, [
+                    $productId, $shopId,
+                    $productId, $shopId,
+                    $productId, $shopId,
+                    $productId, $shopId,
+                    $productId, $shopId,
+                    $productId, $shopId,
+                    "$endDate 23:59:59"
+                ]);
+                $futureChange = (float)($stmt->fetchColumn() ?: 0.0);
+            }
+
+            // Retrieve history of events within date range
+            $eventsSql = "SELECT event_date, qty_change, qty_sold FROM (
+                -- Sales
+                SELECT s.created_at AS event_date, -si.quantity AS qty_change, si.quantity AS qty_sold
+                FROM sale_items si
+                JOIN sales s ON si.sale_id = s.id
+                WHERE si.product_id = ? AND si.shop_id = ?
+                
+                UNION ALL
+                
+                -- Purchases
+                SELECT COALESCE(po.received_date, po.created_at) AS event_date, COALESCE(poi.quantity_received, poi.quantity_ordered) AS qty_change, 0 AS qty_sold
+                FROM purchase_order_items poi
+                JOIN purchase_orders po ON poi.purchase_order_id = po.id
+                WHERE poi.product_id = ? AND poi.shop_id = ? AND po.status = 'received'
+                
+                UNION ALL
+                
+                -- Customer Returns
+                SELECT cr.created_at AS event_date, cr.quantity AS qty_change, -cr.quantity AS qty_sold
+                FROM customer_returns cr
+                WHERE cr.product_id = ? AND cr.shop_id = ?
+                
+                UNION ALL
+                
+                -- Supplier Returns
+                SELECT sr.created_at AS event_date, -sr.quantity AS qty_change, 0 AS qty_sold
+                FROM supplier_returns sr
+                WHERE sr.product_id = ? AND sr.shop_id = ?
+                
+                UNION ALL
+                
+                -- Wastages
+                SELECT w.adjusted_at AS event_date, -w.quantity AS qty_change, 0 AS qty_sold
+                FROM wastages w
+                WHERE w.product_id = ? AND w.shop_id = ?
+                
+                UNION ALL
+                
+                -- Adjustments
+                SELECT ia.created_at AS event_date, 
+                       ia.difference AS qty_change,
+                       0 AS qty_sold
+                FROM inventory_adjustments ia
+                WHERE ia.product_id = ? AND ia.shop_id = ?
+            ) ev";
+
+            $params = [
+                $productId, $shopId,
+                $productId, $shopId,
+                $productId, $shopId,
+                $productId, $shopId,
+                $productId, $shopId,
+                $productId, $shopId
+            ];
+
+            if (!empty($startDate) && !empty($endDate)) {
+                $eventsSql .= " WHERE ev.event_date BETWEEN ? AND ?";
+                $params[] = "$startDate 00:00:00";
+                $params[] = "$endDate 23:59:59";
+            } elseif (!empty($startDate)) {
+                $eventsSql .= " WHERE ev.event_date >= ?";
+                $params[] = "$startDate 00:00:00";
+            } elseif (!empty($endDate)) {
+                $eventsSql .= " WHERE ev.event_date <= ?";
+                $params[] = "$endDate 23:59:59";
+            }
+
+            $eventsSql .= " ORDER BY ev.event_date DESC";
+            $stmt = DB::query($eventsSql, $params);
+            $rawEvents = $stmt->fetchAll();
+
+            // 1. Group daily
+            $dailyEvents = [];
+            foreach ($rawEvents as $ev) {
+                $day = date('Y-m-d', strtotime($ev['event_date']));
+                if (!isset($dailyEvents[$day])) {
+                    $dailyEvents[$day] = [
+                        'date' => $day,
+                        'qty_change' => 0.0,
+                        'qty_sold' => 0.0
+                    ];
+                }
+                $dailyEvents[$day]['qty_change'] += (float)$ev['qty_change'];
+                $dailyEvents[$day]['qty_sold'] += (float)$ev['qty_sold'];
+            }
+
+            $dailyHistory = [];
+            $runningStock = (float)$product['stock_quantity'] - $futureChange;
+            foreach ($dailyEvents as $day => $data) {
+                $dailyHistory[] = [
+                    'date' => $day,
+                    'qty_sold' => $data['qty_sold'],
+                    'qty_change' => $data['qty_change'],
+                    'stock_left' => $runningStock
+                ];
+                $runningStock -= $data['qty_change'];
+            }
+
+            // 2. Group monthly
+            $monthlyEvents = [];
+            foreach ($rawEvents as $ev) {
+                $month = date('Y-m', strtotime($ev['event_date']));
+                if (!isset($monthlyEvents[$month])) {
+                    $monthlyEvents[$month] = [
+                        'month' => $month,
+                        'qty_change' => 0.0,
+                        'qty_sold' => 0.0
+                    ];
+                }
+                $monthlyEvents[$month]['qty_change'] += (float)$ev['qty_change'];
+                $monthlyEvents[$month]['qty_sold'] += (float)$ev['qty_sold'];
+            }
+
+            $monthlyHistory = [];
+            $runningStockMonthly = (float)$product['stock_quantity'] - $futureChange;
+            foreach ($monthlyEvents as $month => $data) {
+                $monthlyHistory[] = [
+                    'month' => $month,
+                    'qty_sold' => $data['qty_sold'],
+                    'qty_change' => $data['qty_change'],
+                    'stock_left' => $runningStockMonthly
+                ];
+                $runningStockMonthly -= $data['qty_change'];
+            }
+
+            header('Content-Type: application/json');
+            echo json_encode([
+                'product_name' => $product['name'],
+                'sku' => $product['sku'],
+                'current_stock' => (int)$product['stock_quantity'],
+                'daily' => $dailyHistory,
+                'monthly' => $monthlyHistory
+            ]);
+
+        } catch (\Exception $e) {
+            error_log('Fetch product stock sales history error: ' . $e->getMessage());
+            Auth::jsonError('Server error retrieving product history.', 500);
+        }
+    }
 }

@@ -221,6 +221,7 @@ $routes = [
         '/^auth\/me$/' => function() { AuthController::getMe(); },
         // Products
         '/^products$/' => function() { ProductController::listProducts(); },
+        '/^products\/(\d+)\/stock-sales-history$/' => function($args) { ProductController::getProductStockSalesHistory($args[0]); },
         '/^products\/(\d+)$/' => function($args) { ProductController::getProduct($args[0]); },
         // Customers
         '/^customers$/' => function() { CustomerController::listCustomers(); },

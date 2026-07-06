@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import API_BASE_URL from '../config';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function OtherSales() {
   const userObj = JSON.parse(localStorage.getItem('user') || '{}');
@@ -26,6 +28,12 @@ export default function OtherSales() {
   
   const [submitting, setSubmitting] = useState(false);
  
+  // Pagination & Filters for Recent History
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 4;
+ 
   const fetchSales = async () => {
     setLoading(true);
     try {
@@ -34,6 +42,8 @@ export default function OtherSales() {
       if (isSuperAdmin && selectedShopId) {
         url += `shop_id=${selectedShopId}&`;
       }
+      if (filterStartDate) url += `start_date=${filterStartDate}&`;
+      if (filterEndDate) url += `end_date=${filterEndDate}&`;
  
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -41,6 +51,7 @@ export default function OtherSales() {
       if (!response.ok) throw new Error('Failed to retrieve sale records.');
       const data = await response.json();
       setSales(data);
+      setCurrentPage(1);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -113,11 +124,46 @@ export default function OtherSales() {
     setFormData({ ...formData, items: newItems });
   };
 
+  const formatCurrencyPDF = (val) => {
+    const numericVal = parseFloat(val || 0);
+    return `Tk ${numericVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    doc.text('Other Sales History', 14, 15);
+    
+    if (filterStartDate || filterEndDate) {
+      doc.setFontSize(10);
+      doc.text(`Date Range: ${filterStartDate || '...'} to ${filterEndDate || '...'}`, 14, 22);
+    }
+    
+    const tableData = sales.map(sale => {
+       const items = parseItems(sale.items).map(i => `${i.item_name} (${i.category})`).join(', ');
+       return [
+         formatDate(sale.sale_date),
+         sale.title || 'Other Sale',
+         sale.customer_name || 'Walk-in',
+         formatCurrencyPDF(sale.amount),
+         items
+       ];
+    });
+
+    autoTable(doc, {
+      head: [['Date', 'Title', 'Customer', 'Amount', 'Items']],
+      body: tableData,
+      startY: (filterStartDate || filterEndDate) ? 28 : 22,
+      styles: { fontSize: 8 },
+    });
+    
+    doc.save('OtherSales_History.pdf');
+  };
+
   const calculateGrandTotal = () => {
     return formData.items.reduce((total, item) => {
       const qty = parseFloat(item.quantity) || 0;
       const price = parseFloat(item.unit_price) || 0;
-      return total + (qty * price);
+      return total + (item.category === 'Mobile Banking Services' ? price : (qty * price));
     }, 0);
   };
 
@@ -210,6 +256,8 @@ export default function OtherSales() {
 
   const parseItems = (itemsStr) => {
     if (!itemsStr) return [];
+    if (Array.isArray(itemsStr)) return itemsStr;
+    if (typeof itemsStr === 'object') return [itemsStr];
     try {
       return JSON.parse(itemsStr);
     } catch (e) {
@@ -405,7 +453,9 @@ export default function OtherSales() {
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Quantity / Weight</label>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                            {item.category === 'Mobile Banking Services' ? 'Transaction Amount' : 'Quantity / Weight'}
+                          </label>
                           <div className="relative">
                             <input
                               type="number"
@@ -416,11 +466,15 @@ export default function OtherSales() {
                               required
                               className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-1 focus:ring-emerald-500 outline-none pr-8"
                             />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">qty/kg</span>
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">
+                              {item.category === 'Mobile Banking Services' ? '৳' : 'qty/kg'}
+                            </span>
                           </div>
                         </div>
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Unit Price / Amount (৳)</label>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                            {item.category === 'Mobile Banking Services' ? 'Commission / Fee (Profit)' : 'Unit Price / Amount (৳)'}
+                          </label>
                           <input
                             type="number"
                             min="0"
@@ -428,14 +482,18 @@ export default function OtherSales() {
                             value={item.unit_price}
                             onChange={(e) => handleItemChange(index, 'unit_price', e.target.value)}
                             required
-                            placeholder="Price"
+                            placeholder={item.category === 'Mobile Banking Services' ? 'Fee (Profit)' : 'Price'}
                             className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-1 focus:ring-emerald-500 outline-none"
                           />
                         </div>
                         <div className="col-span-2 md:col-span-2 flex items-center justify-end bg-slate-50 rounded-lg p-2.5 border border-slate-100">
-                          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3">Item Subtotal:</span>
+                          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3">Item Subtotal (Profit):</span>
                           <span className="font-black text-emerald-600 text-lg">
-                            {formatCurrency((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0))}
+                            {formatCurrency(
+                              item.category === 'Mobile Banking Services' 
+                                ? (parseFloat(item.unit_price) || 0) 
+                                : ((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0))
+                            )}
                           </span>
                         </div>
                       </div>
@@ -471,7 +529,9 @@ export default function OtherSales() {
                 </div>
                 <div className="flex flex-col justify-end items-end space-y-3 bg-gradient-to-br from-emerald-50 to-emerald-100/30 p-5 rounded-2xl border border-emerald-100">
                   <div className="flex justify-between w-full text-emerald-800/70 text-sm">
-                    <span className="font-semibold uppercase tracking-wider">Total Items/Rows:</span>
+                    <span className="font-semibold uppercase tracking-wider">
+                      {formData.items.every(i => i.category === 'Mobile Banking Services') ? 'Total Transactions:' : 'Total Items/Rows:'}
+                    </span>
                     <span className="font-bold">{formData.items.length}</span>
                   </div>
                   <div className="w-full h-px bg-emerald-200/50"></div>
@@ -510,11 +570,38 @@ export default function OtherSales() {
         {/* RIGHT COLUMN: Recent Sales */}
         <div className="lg:col-span-1 space-y-4">
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[600px] lg:sticky lg:top-6">
-            <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Recent History</h3>
-              <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-lg">
-                {sales.length}
-              </span>
+            <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-3">
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Recent History</h3>
+                <div className="flex items-center space-x-2">
+                  <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-lg">
+                    {sales.length}
+                  </span>
+                  <button onClick={exportPDF} className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-2.5 rounded-lg transition-colors flex items-center shadow-sm">
+                    PDF Export
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input 
+                  type="date" 
+                  value={filterStartDate} 
+                  onChange={(e) => setFilterStartDate(e.target.value)} 
+                  className="border border-slate-200 rounded-lg p-1.5 text-xs focus:ring-1 focus:ring-emerald-500 outline-none w-full"
+                />
+                <input 
+                  type="date" 
+                  value={filterEndDate} 
+                  onChange={(e) => setFilterEndDate(e.target.value)} 
+                  className="border border-slate-200 rounded-lg p-1.5 text-xs focus:ring-1 focus:ring-emerald-500 outline-none w-full"
+                />
+                <button 
+                  onClick={() => fetchSales()} 
+                  className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3 py-1.5 rounded-lg text-xs transition-colors"
+                >
+                  Filter
+                </button>
+              </div>
             </div>
             
             <div className="flex-1 overflow-y-auto p-3">
@@ -529,35 +616,59 @@ export default function OtherSales() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {sales.map(sale => (
-                    <div 
-                      key={sale.id} 
-                      onClick={() => setViewSale(sale)}
-                      className="bg-white border border-slate-200 p-3.5 rounded-xl shadow-sm hover:shadow-md hover:border-emerald-300 cursor-pointer transition-all flex flex-col group"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{formatDate(sale.sale_date)}</span>
-                        <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">{formatCurrency(sale.amount)}</span>
+                  {(() => {
+                    const totalPages = Math.ceil(sales.length / itemsPerPage) || 1;
+                    const currentSales = sales.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+                    return currentSales.map(sale => (
+                      <div 
+                        key={sale.id} 
+                        onClick={() => setViewSale(sale)}
+                        className="bg-white border border-slate-200 p-3.5 rounded-xl shadow-sm hover:shadow-md hover:border-emerald-300 cursor-pointer transition-all flex flex-col group"
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{formatDate(sale.sale_date)}</span>
+                          <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">{formatCurrency(sale.amount)}</span>
+                        </div>
+                        <div className="text-sm font-bold text-slate-800 leading-tight">
+                          {sale.title || 'Custom Sale'}
+                        </div>
+                        <div className="flex justify-between items-center mt-3 pt-2 border-t border-slate-100">
+                          <span className="text-xs font-medium text-slate-500 truncate max-w-[150px] flex items-center">
+                            <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            {sale.customer_name || 'Walk-in'}
+                          </span>
+                          <span className="text-[10px] bg-slate-100 text-slate-500 px-2.5 py-1 rounded-md font-bold uppercase tracking-wider group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                            Details
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-sm font-bold text-slate-800 leading-tight">
-                        {sale.title || 'Custom Sale'}
-                      </div>
-                      <div className="flex justify-between items-center mt-3 pt-2 border-t border-slate-100">
-                        <span className="text-xs font-medium text-slate-500 truncate max-w-[150px] flex items-center">
-                          <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                          {sale.customer_name || 'Walk-in'}
-                        </span>
-                        <span className="text-[10px] bg-slate-100 text-slate-500 px-2.5 py-1 rounded-md font-bold uppercase tracking-wider group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                          Details
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    ));
+                  })()}
                 </div>
               )}
             </div>
+            
+            {sales.length > 0 && (
+              <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-between items-center text-xs font-bold text-slate-500 mt-auto">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-lg hover:bg-slate-200 disabled:opacity-50 transition-colors"
+                >
+                  Prev
+                </button>
+                <span>Page {currentPage} of {Math.ceil(sales.length / itemsPerPage) || 1}</span>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(Math.ceil(sales.length / itemsPerPage) || 1, p + 1))}
+                  disabled={currentPage === (Math.ceil(sales.length / itemsPerPage) || 1)}
+                  className="px-3 py-1.5 rounded-lg hover:bg-slate-200 disabled:opacity-50 transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
