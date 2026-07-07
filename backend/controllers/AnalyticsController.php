@@ -19,7 +19,7 @@ class AnalyticsController {
 
         try {
             // 1. Calculate Sales Revenue
-            $salesSql = 'SELECT SUM(final_amount) AS total_sales, SUM(paid_amount) AS total_paid, COUNT(id) AS sales_count FROM sales WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1');
+            $salesSql = 'SELECT SUM(final_amount) AS total_sales, SUM(paid_amount) AS total_paid, COUNT(id) AS sales_count FROM sales WHERE ' . ($hasShop ? 'shop_id = ?' : 'shop_id IS NOT NULL');
             $salesParams = $hasShop ? [$shopId] : [];
             if (!empty($startDate) && !empty($endDate)) {
                 $salesSql .= ' AND created_at BETWEEN ? AND ?';
@@ -37,7 +37,7 @@ class AnalyticsController {
                         FROM sale_items si 
                         JOIN products p ON si.product_id = p.id
                         JOIN sales s ON si.sale_id = s.id
-                        WHERE ' . ($hasShop ? 'si.shop_id = ?' : '1=1');
+                        WHERE ' . ($hasShop ? 'si.shop_id = ?' : 'si.shop_id IS NOT NULL');
             $cogsParams = $hasShop ? [$shopId] : [];
             if (!empty($startDate) && !empty($endDate)) {
                 $cogsSql .= ' AND s.created_at BETWEEN ? AND ?';
@@ -50,7 +50,7 @@ class AnalyticsController {
             // 3. Purchasing Costs
             $poSql = "SELECT SUM(total_amount) AS total_purchased, SUM(paid_amount) AS total_paid 
                       FROM purchase_orders 
-                      WHERE " . ($hasShop ? "shop_id = ?" : "1=1") . " AND status IN ('ordered', 'received')";
+                      WHERE " . ($hasShop ? "shop_id = ?" : "shop_id IS NOT NULL") . " AND status IN ('ordered', 'received')";
             $poParams = $hasShop ? [$shopId] : [];
             if (!empty($startDate) && !empty($endDate)) {
                 $poSql .= ' AND (received_date BETWEEN ? AND ? OR (received_date IS NULL AND order_date BETWEEN ? AND ?))';
@@ -65,7 +65,7 @@ class AnalyticsController {
             $totalPurchasingCash = (float)($poRow['total_paid'] ?? 0);
 
             // 4. Other Costs
-            $otherSql = 'SELECT SUM(amount) AS total_other_costs FROM other_costs WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1');
+            $otherSql = 'SELECT SUM(amount) AS total_other_costs FROM other_costs WHERE ' . ($hasShop ? 'shop_id = ?' : 'shop_id IS NOT NULL');
             $otherParams = $hasShop ? [$shopId] : [];
             if (!empty($startDate) && !empty($endDate)) {
                 $otherSql .= ' AND cost_date BETWEEN ? AND ?';
@@ -76,7 +76,7 @@ class AnalyticsController {
             $totalOther = (float)($stmt->fetchColumn() ?: 0);
 
             // 5. Wastage Loss
-            $wastageSql = 'SELECT SUM(cost_loss) AS total_wastage FROM wastages WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1');
+            $wastageSql = 'SELECT SUM(cost_loss) AS total_wastage FROM wastages WHERE ' . ($hasShop ? 'shop_id = ?' : 'shop_id IS NOT NULL');
             $wastageParams = $hasShop ? [$shopId] : [];
             if (!empty($startDate) && !empty($endDate)) {
                 $wastageSql .= ' AND adjusted_at BETWEEN ? AND ?';
@@ -87,17 +87,17 @@ class AnalyticsController {
             $totalWastage = (float)($stmt->fetchColumn() ?: 0);
 
             // 6. Supplier Due Balance
-            $supplierDueSql = 'SELECT SUM(due_balance) AS total_due FROM suppliers WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1');
+            $supplierDueSql = 'SELECT SUM(due_balance) AS total_due FROM suppliers WHERE ' . ($hasShop ? 'shop_id = ?' : 'shop_id IS NOT NULL');
             $stmt = DB::query($supplierDueSql, $hasShop ? [$shopId] : []);
             $totalSupplierDue = (float)($stmt->fetchColumn() ?: 0);
 
             // 7. Customer Due Balance
-            $customerDueSql = 'SELECT SUM(due_balance) AS total_due FROM customers WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1');
+            $customerDueSql = 'SELECT SUM(due_balance) AS total_due FROM customers WHERE ' . ($hasShop ? 'shop_id = ?' : 'shop_id IS NOT NULL');
             $stmt = DB::query($customerDueSql, $hasShop ? [$shopId] : []);
             $totalCustomerDue = (float)($stmt->fetchColumn() ?: 0);
 
             // 8. Customer Returns (Refunds)
-            $returnsSql = 'SELECT SUM(refund_amount) AS total_refunds FROM customer_returns WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1');
+            $returnsSql = 'SELECT SUM(refund_amount) AS total_refunds FROM customer_returns WHERE ' . ($hasShop ? 'shop_id = ?' : 'shop_id IS NOT NULL');
             $returnsParams = $hasShop ? [$shopId] : [];
             if (!empty($startDate) && !empty($endDate)) {
                 $returnsSql .= ' AND created_at BETWEEN ? AND ?';
@@ -111,7 +111,7 @@ class AnalyticsController {
             $returnedCogsSql = 'SELECT SUM(cr.quantity * p.cost_price) AS returned_cogs 
                                 FROM customer_returns cr 
                                 JOIN products p ON cr.product_id = p.id
-                                WHERE ' . ($hasShop ? 'cr.shop_id = ?' : '1=1');
+                                WHERE ' . ($hasShop ? 'cr.shop_id = ?' : 'cr.shop_id IS NOT NULL');
             $returnedCogsParams = $hasShop ? [$shopId] : [];
             if (!empty($startDate) && !empty($endDate)) {
                 $returnedCogsSql .= ' AND cr.created_at BETWEEN ? AND ?';
@@ -122,7 +122,7 @@ class AnalyticsController {
             $totalReturnedCOGS = (float)($stmt->fetchColumn() ?: 0);
 
             // 10. Other Sales (Miscellaneous/Scrap)
-            $otherSalesSql = 'SELECT SUM(amount) AS total_other_sales FROM other_sales WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1');
+            $otherSalesSql = 'SELECT SUM(amount) AS total_other_sales FROM other_sales WHERE ' . ($hasShop ? 'shop_id = ?' : 'shop_id IS NOT NULL');
             $otherSalesParams = $hasShop ? [$shopId] : [];
             if (!empty($startDate) && !empty($endDate)) {
                 $otherSalesSql .= ' AND sale_date BETWEEN ? AND ?';
@@ -159,7 +159,7 @@ class AnalyticsController {
 
             // Fetch daily sales trend
             $trendSalesSql = 'SELECT DATE_FORMAT(created_at, "%Y-%m-%d") AS date, SUM(final_amount) AS revenue, SUM(paid_amount) AS cash_received 
-                              FROM sales WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1') . ' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
+                              FROM sales WHERE ' . ($hasShop ? 'shop_id = ?' : 'shop_id IS NOT NULL') . ' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
                               GROUP BY DATE_FORMAT(created_at, "%Y-%m-%d")';
             $stmt = DB::query($trendSalesSql, $hasShop ? [$shopId] : []);
             while ($row = $stmt->fetch()) {
@@ -175,7 +175,7 @@ class AnalyticsController {
                              FROM sale_items si 
                              JOIN products p ON si.product_id = p.id
                              JOIN sales s ON si.sale_id = s.id
-                             WHERE ' . ($hasShop ? 'si.shop_id = ?' : '1=1') . ' AND s.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+                             WHERE ' . ($hasShop ? 'si.shop_id = ?' : 'si.shop_id IS NOT NULL') . ' AND s.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
                              GROUP BY DATE_FORMAT(s.created_at, "%Y-%m-%d")';
             $stmt = DB::query($trendCogsSql, $hasShop ? [$shopId] : []);
             while ($row = $stmt->fetch()) {
@@ -187,7 +187,7 @@ class AnalyticsController {
 
             // Fetch daily returns trend
             $trendReturnsSql = 'SELECT DATE_FORMAT(created_at, "%Y-%m-%d") AS date, SUM(refund_amount) AS refunds 
-                                FROM customer_returns WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1') . ' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
+                                FROM customer_returns WHERE ' . ($hasShop ? 'shop_id = ?' : 'shop_id IS NOT NULL') . ' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
                                 GROUP BY DATE_FORMAT(created_at, "%Y-%m-%d")';
             $stmt = DB::query($trendReturnsSql, $hasShop ? [$shopId] : []);
             while ($row = $stmt->fetch()) {
@@ -201,7 +201,7 @@ class AnalyticsController {
             $trendReturnedCogsSql = 'SELECT DATE_FORMAT(cr.created_at, "%Y-%m-%d") AS date, SUM(cr.quantity * p.cost_price) AS returned_cogs 
                                      FROM customer_returns cr 
                                      JOIN products p ON cr.product_id = p.id
-                                     WHERE ' . ($hasShop ? 'cr.shop_id = ?' : '1=1') . ' AND cr.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+                                     WHERE ' . ($hasShop ? 'cr.shop_id = ?' : 'cr.shop_id IS NOT NULL') . ' AND cr.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
                                      GROUP BY DATE_FORMAT(cr.created_at, "%Y-%m-%d")';
             $stmt = DB::query($trendReturnedCogsSql, $hasShop ? [$shopId] : []);
             while ($row = $stmt->fetch()) {
@@ -213,7 +213,7 @@ class AnalyticsController {
 
             // Fetch daily other costs trend
             $trendOtherSql = 'SELECT DATE_FORMAT(cost_date, "%Y-%m-%d") AS date, SUM(amount) AS other 
-                              FROM other_costs WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1') . ' AND cost_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
+                              FROM other_costs WHERE ' . ($hasShop ? 'shop_id = ?' : 'shop_id IS NOT NULL') . ' AND cost_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
                               GROUP BY DATE_FORMAT(cost_date, "%Y-%m-%d")';
             $stmt = DB::query($trendOtherSql, $hasShop ? [$shopId] : []);
             while ($row = $stmt->fetch()) {
@@ -225,7 +225,7 @@ class AnalyticsController {
 
             // Fetch daily wastages trend
             $trendWastageSql = 'SELECT DATE_FORMAT(adjusted_at, "%Y-%m-%d") AS date, SUM(cost_loss) AS wastage 
-                                FROM wastages WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1') . ' AND adjusted_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
+                                FROM wastages WHERE ' . ($hasShop ? 'shop_id = ?' : 'shop_id IS NOT NULL') . ' AND adjusted_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
                                 GROUP BY DATE_FORMAT(adjusted_at, "%Y-%m-%d")';
             $stmt = DB::query($trendWastageSql, $hasShop ? [$shopId] : []);
             while ($row = $stmt->fetch()) {
@@ -238,7 +238,7 @@ class AnalyticsController {
             // Fetch daily PO trend
             $trendPoSql = "SELECT DATE_FORMAT(COALESCE(received_date, order_date), '%Y-%m-%d') AS date, SUM(total_amount) AS total, SUM(paid_amount) AS cash_paid 
                            FROM purchase_orders 
-                           WHERE " . ($hasShop ? 'shop_id = ?' : '1=1') . " AND status IN ('ordered', 'received') AND COALESCE(received_date, order_date) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
+                           WHERE " . ($hasShop ? 'shop_id = ?' : 'shop_id IS NOT NULL') . " AND status IN ('ordered', 'received') AND COALESCE(received_date, order_date) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
                            GROUP BY DATE_FORMAT(COALESCE(received_date, order_date), '%Y-%m-%d')";
             $stmt = DB::query($trendPoSql, $hasShop ? [$shopId] : []);
             while ($row = $stmt->fetch()) {
@@ -251,7 +251,7 @@ class AnalyticsController {
 
             // Fetch daily other sales trend
             $trendOtherSalesSql = 'SELECT DATE_FORMAT(sale_date, "%Y-%m-%d") AS date, SUM(amount) AS revenue 
-                                   FROM other_sales WHERE ' . ($hasShop ? 'shop_id = ?' : '1=1') . ' AND sale_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
+                                   FROM other_sales WHERE ' . ($hasShop ? 'shop_id = ?' : 'shop_id IS NOT NULL') . ' AND sale_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) 
                                    GROUP BY DATE_FORMAT(sale_date, "%Y-%m-%d")';
             $stmt = DB::query($trendOtherSalesSql, $hasShop ? [$shopId] : []);
             while ($row = $stmt->fetch()) {
@@ -280,7 +280,7 @@ class AnalyticsController {
                             COALESCE(SUM(CASE WHEN mo.status = "confirmed" THEN s.due_amount END), 0) AS confirmed_due
                           FROM manual_orders mo
                           LEFT JOIN sales s ON mo.sale_id = s.id
-                          WHERE ' . ($hasShop ? 'mo.shop_id = ?' : '1=1');
+                          WHERE ' . ($hasShop ? 'mo.shop_id = ?' : 'mo.shop_id IS NOT NULL');
             $manualParams = $hasShop ? [$shopId] : [];
             if (!empty($startDate) && !empty($endDate)) {
                 $manualSql .= ' AND mo.created_at BETWEEN ? AND ?';
@@ -294,7 +294,7 @@ class AnalyticsController {
             $pendingSql = 'SELECT COALESCE(SUM(moi.subtotal), 0) as pending_value
                            FROM manual_order_items moi
                            JOIN manual_orders mo ON moi.order_id = mo.id
-                           WHERE mo.status = "pending" AND ' . ($hasShop ? 'mo.shop_id = ?' : '1=1');
+                           WHERE mo.status = "pending" AND ' . ($hasShop ? 'mo.shop_id = ?' : 'mo.shop_id IS NOT NULL');
             $pendingParams = $hasShop ? [$shopId] : [];
             if (!empty($startDate) && !empty($endDate)) {
                 $pendingSql .= ' AND mo.created_at BETWEEN ? AND ?';
@@ -353,10 +353,10 @@ class AnalyticsController {
                 $stmt = DB::query('SELECT COUNT(*) as total_users FROM users WHERE role != "super_admin"');
                 $userStats = $stmt->fetch();
 
-                $stmt = DB::query('SELECT COUNT(*) as total_sales, SUM(final_amount) as global_revenue FROM sales');
+                $stmt = DB::query('SELECT COUNT(*) as total_sales, SUM(final_amount) as global_revenue FROM sales WHERE shop_id IS NOT NULL');
                 $salesStats = $stmt->fetch();
 
-                $stmt = DB::query('SELECT SUM(amount) as global_other_sales FROM other_sales');
+                $stmt = DB::query('SELECT SUM(amount) as global_other_sales FROM other_sales WHERE shop_id IS NOT NULL');
                 $globalOtherSales = (float)($stmt->fetchColumn() ?: 0);
                 $totalGlobalRevenue = (float)($salesStats['global_revenue'] ?? 0) + $globalOtherSales;
 
@@ -375,17 +375,67 @@ class AnalyticsController {
                     $ts['shop_revenue'] = (float)$ts['shop_revenue'] + $osAmount;
                 }
 
+                // Today's global revenue
+                $stmt = DB::query("SELECT COALESCE(SUM(final_amount), 0) as today_revenue, COUNT(id) as today_sales FROM sales WHERE shop_id IS NOT NULL AND DATE(created_at) = CURDATE()");
+                $todayRow = $stmt->fetch();
+                $stmt = DB::query("SELECT COALESCE(SUM(amount), 0) as today_other FROM other_sales WHERE shop_id IS NOT NULL AND DATE(sale_date) = CURDATE()");
+                $todayOtherRevenue = (float)($stmt->fetchColumn() ?: 0);
+                $todayRevenue = (float)($todayRow['today_revenue'] ?? 0) + $todayOtherRevenue;
+                $todaySalesCount = (int)($todayRow['today_sales'] ?? 0);
+
+                // 7-day global revenue + sales trend
+                $trendMap = [];
+                for ($i = 6; $i >= 0; $i--) {
+                    $dateStr = date('Y-m-d', strtotime("-$i days"));
+                    $trendMap[$dateStr] = ['date' => $dateStr, 'revenue' => 0.0, 'sales_count' => 0];
+                }
+
+                // Global sales per day (all shops)
+                $stmt = DB::query("SELECT DATE_FORMAT(created_at, '%Y-%m-%d') as sale_date,
+                                          SUM(final_amount) as daily_revenue,
+                                          COUNT(id) as daily_sales
+                                   FROM sales
+                                   WHERE shop_id IS NOT NULL AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+                                   GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
+                                   ORDER BY sale_date ASC");
+                $trendSalesRows = $stmt->fetchAll();
+                foreach ($trendSalesRows as $row) {
+                    $sd = $row['sale_date'];
+                    if (isset($trendMap[$sd])) {
+                        $trendMap[$sd]['revenue'] += (float)$row['daily_revenue'];
+                        $trendMap[$sd]['sales_count'] += (int)$row['daily_sales'];
+                    }
+                }
+
+                // Global other_sales per day (all shops)
+                $stmt = DB::query("SELECT DATE_FORMAT(sale_date, '%Y-%m-%d') as os_date, SUM(amount) as daily_os_revenue
+                                   FROM other_sales
+                                   WHERE shop_id IS NOT NULL AND sale_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+                                   GROUP BY DATE_FORMAT(sale_date, '%Y-%m-%d')");
+                $osTrendRows = $stmt->fetchAll();
+                foreach ($osTrendRows as $row) {
+                    $osd = $row['os_date'];
+                    if (isset($trendMap[$osd])) {
+                        $trendMap[$osd]['revenue'] += (float)$row['daily_os_revenue'];
+                    }
+                }
+
+                $salesTrend = array_values($trendMap);
+
                 header('Content-Type: application/json');
                 echo json_encode([
                     'dashboard_type' => 'super_admin',
                     'metrics' => [
-                        'total_shops' => (int)($shopStats['total_shops'] ?? 0),
-                        'active_shops' => (int)($shopStats['active_shops'] ?? 0),
-                        'total_users' => (int)($userStats['total_users'] ?? 0),
-                        'total_sales' => (int)($salesStats['total_sales'] ?? 0),
-                        'global_revenue' => number_format($totalGlobalRevenue, 2, '.', '')
+                        'total_shops'    => (int)($shopStats['total_shops'] ?? 0),
+                        'active_shops'   => (int)($shopStats['active_shops'] ?? 0),
+                        'total_users'    => (int)($userStats['total_users'] ?? 0),
+                        'total_sales'    => (int)($salesStats['total_sales'] ?? 0),
+                        'global_revenue' => number_format($totalGlobalRevenue, 2, '.', ''),
+                        'today_revenue'  => number_format($todayRevenue, 2, '.', ''),
+                        'today_sales'    => $todaySalesCount,
                     ],
-                    'tenant_breakdown' => $tenantSales
+                    'tenant_breakdown' => $tenantSales,
+                    'sales_trend'      => $salesTrend,
                 ]);
 
             } else {

@@ -8,8 +8,8 @@ This guide outlines the step-by-step instructions to deploy your Multi-Tenant PO
 We have already updated your database credentials in the backend:
 - **MySQL Host**: `sql101.cpanelfree.com`
 - **MySQL User**: `cpfr_42335617`
-- **MySQL DB Name**: `cpfr_42335617_mk_poss`
-- **MySQL Password**: `123456789`
+- **MySQL DB Name**: `cpfr_42335617_new_pos`
+- **MySQL Password**: `0Z47ekqw6U`
 
 ---
 

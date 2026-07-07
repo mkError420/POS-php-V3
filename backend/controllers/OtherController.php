@@ -27,7 +27,7 @@ class OtherController {
             $sql = 'SELECT o.*, s.name AS shop_name 
                     FROM other_costs o 
                     LEFT JOIN shops s ON o.shop_id = s.id 
-                    WHERE ' . ($hasShop ? 'o.shop_id = ?' : '1=1');
+                    WHERE ' . ($hasShop ? 'o.shop_id = ?' : 'o.shop_id IS NOT NULL');
             $params = $hasShop ? [$shopId] : [];
 
             if (!empty($startDate) && !empty($endDate)) {
@@ -170,7 +170,7 @@ class OtherController {
                     FROM wastages w 
                     JOIN products p ON w.product_id = p.id 
                     LEFT JOIN shops sh ON w.shop_id = sh.id
-                    WHERE ' . ($hasShop ? 'w.shop_id = ?' : '1=1') . '
+                    WHERE ' . ($hasShop ? 'w.shop_id = ?' : 'w.shop_id IS NOT NULL') . '
                     ORDER BY w.adjusted_at DESC';
             $params = $hasShop ? [$shopId] : [];
             $stmt = DB::query($sql, $params);
@@ -314,7 +314,7 @@ class OtherController {
                     LEFT JOIN customers c ON cr.customer_id = c.id 
                     LEFT JOIN sales s ON cr.sale_id = s.id 
                     LEFT JOIN shops sh ON cr.shop_id = sh.id
-                    WHERE ' . ($hasShop ? 'cr.shop_id = ?' : '1=1') . ' 
+                    WHERE ' . ($hasShop ? 'cr.shop_id = ?' : 'cr.shop_id IS NOT NULL') . ' 
                     ORDER BY cr.created_at DESC';
             $params = $hasShop ? [$shopId] : [];
             $stmt = DB::query($sql, $params);

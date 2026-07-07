@@ -61,7 +61,7 @@ export default function Login({ onLoginSuccess }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">NextPOS++</h1>
+          <h1 className="text-3xl font-bold text-white tracking-tight">YearaPOS++</h1>
           <p className="text-slate-400 mt-1 text-sm">Sign in to your account to continue</p>
         </div>
 
@@ -171,12 +171,12 @@ export default function Login({ onLoginSuccess }) {
           </form>
 
           {/* Role Hint Cards */}
-          {/* <div className="mt-6 pt-6 border-t border-slate-700/60">
+          <div className="mt-6 pt-6 border-t border-slate-700/60">
             <p className="text-xs text-slate-500 text-center mb-3 font-medium uppercase tracking-wider">Demo Credentials</p>
             <div className="grid grid-cols-1 gap-2">
               <button
                 type="button"
-                onClick={() => { setEmail('mk.rabbani.cse@gmail.com'); setPassword('123456789'); }}
+                onClick={() => { setEmail('superadmin@mkpos.com'); setPassword(''); }}
                 className="flex items-center gap-3 w-full text-left bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl px-3 py-2.5 transition-colors group"
               >
                 <span className="text-xs font-bold bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded-full shrink-0">SUPER ADMIN</span>
@@ -184,20 +184,20 @@ export default function Login({ onLoginSuccess }) {
               </button>
               <button
                 type="button"
-                onClick={() => { setEmail('alice@boutique.com'); setPassword('alice123'); }}
+                onClick={() => { setEmail('new@gmail.com'); setPassword('123456'); }}
                 className="flex items-center gap-3 w-full text-left bg-gray-500/10 hover:bg-gray-500/20 border border-gray-500/20 rounded-xl px-3 py-2.5 transition-colors group"
               >
                 <span className="text-xs font-bold bg-gray-500/20 text-gray-400 px-2 py-0.5 rounded-full shrink-0">SHOP ADMIN</span>
-                <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors truncate">alice@boutique.com · alice123</span>
+                <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors truncate">new@gmail.com · 123456</span>
               </button>
-              <button
+              {/*               <button
                 type="button"
                 onClick={() => { setEmail('admin@lakeside.com'); setPassword('lakeside123'); }}
                 className="flex items-center gap-3 w-full text-left bg-gray-500/10 hover:bg-gray-500/20 border border-gray-500/20 rounded-xl px-3 py-2.5 transition-colors group"
               >
                 <span className="text-xs font-bold bg-gray-500/20 text-gray-400 px-2 py-0.5 rounded-full shrink-0">SHOP ADMIN</span>
                 <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors truncate">admin@lakeside.com · lakeside123</span>
-              </button>
+              </button> */}
               <button
                 type="button"
                 onClick={() => { setEmail('staff1@boutique.com'); setPassword('staff123'); }}
@@ -207,7 +207,7 @@ export default function Login({ onLoginSuccess }) {
                 <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors truncate">staff1@boutique.com · staff123</span>
               </button>
             </div>
-          </div> */}
+          </div>
         </div>
 
         <p className="text-center text-slate-600 text-xs mt-6">

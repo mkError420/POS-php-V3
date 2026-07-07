@@ -2,11 +2,14 @@
 node_modules/
 */node_modules/
 
-# Environment variables (sensitive!)
-backend/.env
+# Environment variables (sensitive — never commit real credentials!)
 .env
 .env.local
 .env.production
+.env.development.local
+.env.production.local
+backend/.env
+frontend/.env
 
 # Build output
 frontend/dist/

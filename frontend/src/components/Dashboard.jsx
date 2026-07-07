@@ -93,18 +93,29 @@ export default function Dashboard({ onNavigate = () => { } }) {
     return (
       <div className="space-y-6">
 
-        {/* 1. Header Row */}
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Global System Analytics</h2>
-          <p className="text-sm text-slate-500">Real-time cross-tenant metrics and shop performance indicators</p>
+        {/* ── 1. Header ─────────────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800">Global System Analytics</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Real-time cross-tenant metrics and shop performance indicators</p>
+          </div>
+          <button
+            onClick={fetchDashboardData}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow transition-colors self-start sm:self-auto"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
         </div>
 
-        {/* 2. Key Metrics Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* ── 2. Metrics Grid (6 cards) ──────────────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
 
           {/* Global Revenue */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex items-center space-x-4">
-            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl shrink-0">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -115,22 +126,37 @@ export default function Dashboard({ onNavigate = () => { } }) {
             </div>
           </div>
 
+          {/* Today's Revenue */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex items-center space-x-4">
+            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl shrink-0">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Today's Revenue</p>
+              <h3 className="text-2xl font-extrabold text-slate-800 mt-0.5">৳{parseFloat(metrics.today_revenue || 0).toFixed(2)}</h3>
+              <p className="text-[11px] text-slate-400">{metrics.today_sales || 0} transactions today</p>
+            </div>
+          </div>
+
           {/* Active Shops */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex items-center space-x-4">
-            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <div className="p-3 bg-amber-50 text-amber-600 rounded-xl shrink-0">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Tenant Shops</p>
-              <h3 className="text-2xl font-extrabold text-slate-800 mt-0.5">{metrics.active_shops} / {metrics.total_shops}</h3>
+              <h3 className="text-2xl font-extrabold text-slate-800 mt-0.5">{metrics.active_shops} <span className="text-lg font-medium text-slate-400">/ {metrics.total_shops}</span></h3>
+              <p className="text-[11px] text-slate-400">{metrics.total_shops - metrics.active_shops > 0 ? `${metrics.total_shops - metrics.active_shops} suspended` : 'All shops active'}</p>
             </div>
           </div>
 
-          {/* Sales Count */}
+          {/* Total Sales */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex items-center space-x-4">
-            <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+            <div className="p-3 bg-sky-50 text-sky-600 rounded-xl shrink-0">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
@@ -141,9 +167,22 @@ export default function Dashboard({ onNavigate = () => { } }) {
             </div>
           </div>
 
-          {/* System Users */}
+          {/* Today's Sales */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex items-center space-x-4">
-            <div className="p-3 bg-violet-50 text-violet-600 rounded-xl">
+            <div className="p-3 bg-violet-50 text-violet-600 rounded-xl shrink-0">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Today's Transactions</p>
+              <h3 className="text-2xl font-extrabold text-slate-800 mt-0.5">{metrics.today_sales || 0}</h3>
+            </div>
+          </div>
+
+          {/* Total System Users */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex items-center space-x-4">
+            <div className="p-3 bg-rose-50 text-rose-500 rounded-xl shrink-0">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
@@ -156,30 +195,140 @@ export default function Dashboard({ onNavigate = () => { } }) {
 
         </div>
 
-        {/* Super Admin Global Breakdown Chart */}
+        {/* ── 3. Global 7-Day Revenue Trend Chart ───────────────────────── */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs relative">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div>
+              <h3 className="text-lg font-bold text-slate-800">7-Day Global Revenue Trend</h3>
+              <p className="text-xs text-slate-500">Combined transaction volume and gross revenues across all shops</p>
+            </div>
+            <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200/60 self-end sm:self-auto">
+              <button
+                onClick={() => setChartType('revenue')}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${chartType === 'revenue' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+              >
+                Revenue (৳)
+              </button>
+              <button
+                onClick={() => setChartType('sales')}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${chartType === 'sales' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+              >
+                Transactions
+              </button>
+            </div>
+          </div>
+
+          {salesTrend.length === 0 ? (
+            <div className="h-48 flex items-center justify-center text-slate-400 text-sm">
+              No trend data available yet.
+            </div>
+          ) : (
+            <div className="relative w-full h-[220px]">
+              <svg viewBox="0 0 600 220" className="w-full h-full overflow-visible" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="superAdminGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#6366f1" stopOpacity="0.2" />
+                    <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
+                  </linearGradient>
+                </defs>
+
+                {/* Grid Lines */}
+                {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
+                  const svgHeight = 220, paddingTop = 20, paddingBottom = 40, paddingLeft = 60, paddingRight = 25;
+                  const y = paddingTop + (1 - ratio) * (svgHeight - paddingTop - paddingBottom);
+                  const chartValues = salesTrend.map(d => chartType === 'revenue' ? parseFloat(d.revenue) : parseInt(d.sales_count));
+                  const maxVal = Math.max(...chartValues, 10);
+                  const labelVal = ratio * maxVal;
+                  return (
+                    <g key={idx}>
+                      <line x1={paddingLeft} y1={y} x2={600 - paddingRight} y2={y} stroke="#f1f5f9" strokeWidth="1.5" />
+                      <text x={paddingLeft - 8} y={y + 4} textAnchor="end" className="text-[10px] font-bold text-slate-400 fill-current font-sans">
+                        {chartType === 'revenue' ? `৳${Math.round(labelVal)}` : Math.round(labelVal)}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                {/* Line + Area + Dots */}
+                {(() => {
+                  const svgWidth = 600, svgHeight = 220;
+                  const paddingLeft = 60, paddingRight = 25, paddingTop = 20, paddingBottom = 40;
+                  const chartValues = salesTrend.map(d => chartType === 'revenue' ? parseFloat(d.revenue) : parseInt(d.sales_count));
+                  const maxVal = Math.max(...chartValues, 10);
+                  const pts = salesTrend.map((d, i) => {
+                    const val = chartType === 'revenue' ? parseFloat(d.revenue) : parseInt(d.sales_count);
+                    const x = paddingLeft + (i * (svgWidth - paddingLeft - paddingRight) / (salesTrend.length - 1 || 1));
+                    const y = svgHeight - paddingBottom - ((val / maxVal) * (svgHeight - paddingTop - paddingBottom));
+                    return { x, y, val, date: d.date };
+                  });
+                  const linePath = pts.reduce((p, pt, i) => p + (i === 0 ? `M ${pt.x} ${pt.y}` : ` L ${pt.x} ${pt.y}`), '');
+                  const areaPath = `${linePath} L ${pts[pts.length - 1].x} ${svgHeight - paddingBottom} L ${pts[0].x} ${svgHeight - paddingBottom} Z`;
+                  return (
+                    <>
+                      <path d={areaPath} fill="url(#superAdminGradient)" />
+                      <path d={linePath} fill="none" stroke="#4f46e5" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                      {pts.map((pt, idx) => (
+                        <g key={idx}>
+                          <circle cx={pt.x} cy={pt.y} r="18" fill="transparent" className="cursor-pointer"
+                            onMouseEnter={() => setHoveredPoint({ ...pt, index: idx })}
+                            onMouseLeave={() => setHoveredPoint(null)} />
+                          <circle cx={pt.x} cy={pt.y}
+                            r={hoveredPoint?.index === idx ? "6" : "4.5"}
+                            fill={hoveredPoint?.index === idx ? "#4f46e5" : "#ffffff"}
+                            stroke="#4f46e5"
+                            strokeWidth={hoveredPoint?.index === idx ? "3" : "2"}
+                            className="pointer-events-none transition-all duration-150" />
+                        </g>
+                      ))}
+                      {pts.map((pt, idx) => {
+                        const label = new Date(pt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        return (
+                          <text key={idx} x={pt.x} y={svgHeight - 12} textAnchor="middle"
+                            className="text-[10px] font-bold text-slate-400 fill-current font-sans">
+                            {label}
+                          </text>
+                        );
+                      })}
+                    </>
+                  );
+                })()}
+              </svg>
+
+              {/* Tooltip */}
+              {hoveredPoint && (
+                <div
+                  className="absolute bg-slate-900/95 backdrop-blur-md text-white rounded-xl p-3 shadow-xl border border-slate-700 pointer-events-none text-xs flex flex-col space-y-1 z-10"
+                  style={{ left: `${(hoveredPoint.x / 600) * 100}%`, top: `${(hoveredPoint.y / 220) * 100 - 10}%`, transform: 'translate(-50%, -100%)' }}
+                >
+                  <span className="font-semibold text-slate-400">
+                    {new Date(hoveredPoint.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                  </span>
+                  <span className="font-extrabold text-white text-sm">
+                    {chartType === 'revenue' ? `৳${parseFloat(hoveredPoint.val).toFixed(2)}` : `${hoveredPoint.val} Transactions`}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── 4. Shop Performance Bar Chart ─────────────────────────────── */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs relative">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div>
               <h3 className="text-lg font-bold text-slate-800">Shop Performance Breakdown</h3>
               <p className="text-xs text-slate-500">Comparing transaction counts and gross revenues across all tenant shops</p>
             </div>
-
             <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200/60 self-end sm:self-auto">
               <button
                 onClick={() => setChartType('revenue')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${chartType === 'revenue'
-                  ? 'bg-white text-indigo-600 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
-                  }`}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${chartType === 'revenue' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
               >
                 Revenue (৳)
               </button>
               <button
                 onClick={() => setChartType('sales')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${chartType === 'sales'
-                  ? 'bg-white text-indigo-600 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
-                  }`}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${chartType === 'sales' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
               >
                 Transactions
               </button>
@@ -192,102 +341,48 @@ export default function Dashboard({ onNavigate = () => { } }) {
             </div>
           ) : (
             <div className="relative w-full h-[220px]">
-              {/* SVG Plot */}
-              <svg
-                viewBox="0 0 600 220"
-                className="w-full h-full overflow-visible"
-                preserveAspectRatio="none"
-              >
-                {/* Grid Lines */}
+              <svg viewBox="0 0 600 220" className="w-full h-full overflow-visible" preserveAspectRatio="none">
                 {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
-                  const svgHeight = 220;
-                  const paddingTop = 20;
-                  const paddingBottom = 40;
-                  const paddingLeft = 65;
-                  const paddingRight = 25;
+                  const svgHeight = 220, paddingTop = 20, paddingBottom = 40, paddingLeft = 65, paddingRight = 25;
                   const y = paddingTop + (1 - ratio) * (svgHeight - paddingTop - paddingBottom);
                   const chartValues = tenantBreakdown.map(d => chartType === 'revenue' ? parseFloat(d.shop_revenue || 0) : parseInt(d.sales_count || 0));
                   const maxVal = Math.max(...chartValues, 10);
                   const labelVal = ratio * maxVal;
-
                   return (
                     <g key={idx}>
-                      <line
-                        x1={paddingLeft}
-                        y1={y}
-                        x2={600 - paddingRight}
-                        y2={y}
-                        stroke="#f1f5f9"
-                        strokeWidth="1.5"
-                      />
-                      <text
-                        x={paddingLeft - 12}
-                        y={y + 4}
-                        textAnchor="end"
-                        className="text-[10px] font-bold text-slate-400 fill-current font-sans"
-                      >
+                      <line x1={paddingLeft} y1={y} x2={600 - paddingRight} y2={y} stroke="#f1f5f9" strokeWidth="1.5" />
+                      <text x={paddingLeft - 12} y={y + 4} textAnchor="end" className="text-[10px] font-bold text-slate-400 fill-current font-sans">
                         {chartType === 'revenue' ? `৳${Math.round(labelVal)}` : Math.round(labelVal)}
                       </text>
                     </g>
                   );
                 })}
 
-                {/* Bars */}
                 {(() => {
-                  const svgWidth = 600;
-                  const svgHeight = 220;
-                  const paddingLeft = 65;
-                  const paddingRight = 25;
-                  const paddingTop = 20;
-                  const paddingBottom = 40;
-
+                  const svgWidth = 600, svgHeight = 220;
+                  const paddingLeft = 65, paddingRight = 25, paddingTop = 20, paddingBottom = 40;
                   const chartValues = tenantBreakdown.map(d => chartType === 'revenue' ? parseFloat(d.shop_revenue || 0) : parseInt(d.sales_count || 0));
                   const maxVal = Math.max(...chartValues, 10);
-
                   const totalSum = chartValues.reduce((a, b) => a + b, 0);
-
                   const barWidth = Math.min(40, ((svgWidth - paddingLeft - paddingRight) / tenantBreakdown.length) * 0.5);
-                  const gap = ((svgWidth - paddingLeft - paddingRight) / tenantBreakdown.length);
+                  const gap = (svgWidth - paddingLeft - paddingRight) / tenantBreakdown.length;
 
                   return tenantBreakdown.map((d, index) => {
                     const val = chartType === 'revenue' ? parseFloat(d.shop_revenue || 0) : parseInt(d.sales_count || 0);
                     const barHeight = (val / maxVal) * (svgHeight - paddingTop - paddingBottom);
-
                     const x = paddingLeft + (index * gap) + (gap - barWidth) / 2;
                     const y = svgHeight - paddingBottom - barHeight;
-
                     const percent = totalSum > 0 ? ((val / totalSum) * 100).toFixed(1) : 0;
-
                     return (
                       <g key={index}>
-                        {/* Bar Background shadow catch */}
-                        <rect
-                          x={paddingLeft + index * gap}
-                          y={paddingTop}
-                          width={gap}
-                          height={svgHeight - paddingTop - paddingBottom}
-                          fill="transparent"
-                          className="cursor-pointer"
+                        <rect x={paddingLeft + index * gap} y={paddingTop} width={gap} height={svgHeight - paddingTop - paddingBottom}
+                          fill="transparent" className="cursor-pointer"
                           onMouseEnter={() => setHoveredPoint({ x: x + barWidth / 2, y, val, name: d.shop_name, percent, index })}
-                          onMouseLeave={() => setHoveredPoint(null)}
-                        />
-                        {/* Visual Bar */}
-                        <rect
-                          x={x}
-                          y={y}
-                          width={barWidth}
-                          height={barHeight}
-                          rx="4"
-                          className={`transition-all duration-200 fill-indigo-600 ${hoveredPoint?.index === index ? 'fill-indigo-500 filter drop-shadow-md' : 'opacity-85'}`}
-                        />
-                        {/* Label under X axis */}
-                        <text
-                          x={x + barWidth / 2}
-                          y={svgHeight - 12}
-                          textAnchor="middle"
-                          className="text-[9px] font-bold text-slate-400 fill-current font-sans truncate"
-                          style={{ maxWidth: gap - 4 }}
-                        >
+                          onMouseLeave={() => setHoveredPoint(null)} />
+                        <rect x={x} y={y} width={barWidth} height={barHeight} rx="4"
+                          className={`transition-all duration-200 fill-indigo-600 ${hoveredPoint?.index === index ? 'fill-indigo-500 filter drop-shadow-md' : 'opacity-85'}`} />
+                        <text x={x + barWidth / 2} y={svgHeight - 12} textAnchor="middle"
+                          className="text-[9px] font-bold text-slate-400 fill-current font-sans">
                           {d.shop_name.length > 8 ? d.shop_name.slice(0, 7) + '..' : d.shop_name}
                         </text>
                       </g>
@@ -296,41 +391,33 @@ export default function Dashboard({ onNavigate = () => { } }) {
                 })()}
               </svg>
 
-              {/* Tooltip Overlay */}
-              {hoveredPoint && (
+              {hoveredPoint && hoveredPoint.name && (
                 <div
-                  className="absolute bg-slate-900/95 backdrop-blur-md text-white rounded-xl p-3 shadow-xl border border-slate-700 pointer-events-none text-xs flex flex-col space-y-1 transition-all duration-75 z-10"
-                  style={{
-                    left: `${(hoveredPoint.x / 600) * 100}%`,
-                    top: `${(hoveredPoint.y / 220) * 100 - 10}%`,
-                    transform: 'translate(-50%, -100%)'
-                  }}
+                  className="absolute bg-slate-900/95 backdrop-blur-md text-white rounded-xl p-3 shadow-xl border border-slate-700 pointer-events-none text-xs flex flex-col space-y-1 z-10"
+                  style={{ left: `${(hoveredPoint.x / 600) * 100}%`, top: `${(hoveredPoint.y / 220) * 100 - 10}%`, transform: 'translate(-50%, -100%)' }}
                 >
-                  <span className="font-semibold text-slate-400">
-                    {hoveredPoint.name}
-                  </span>
+                  <span className="font-semibold text-slate-400">{hoveredPoint.name}</span>
                   <span className="font-extrabold text-white text-sm">
                     {chartType === 'revenue' ? `৳${parseFloat(hoveredPoint.val).toFixed(2)}` : `${hoveredPoint.val} Transactions`}
                   </span>
-                  <span className="text-[10px] text-indigo-400 font-bold">
-                    {hoveredPoint.percent}% of total
-                  </span>
+                  <span className="text-[10px] text-indigo-400 font-bold">{hoveredPoint.percent}% of total</span>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* 3. Detailed Data Section */}
+        {/* ── 5. Data Table + Quick Links ───────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          {/* Left Col: Shop Breakdown (Span 2) */}
+          {/* Tenant Table (span 2) */}
           <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col">
             <h3 className="text-lg font-bold text-slate-800 mb-4">Tenant Shops Breakdown</h3>
             <div className="flex-1 overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    <th className="pb-3">#</th>
                     <th className="pb-3">Shop Name</th>
                     <th className="pb-3 text-center">Transactions</th>
                     <th className="pb-3 text-right">Gross Revenue</th>
@@ -339,13 +426,12 @@ export default function Dashboard({ onNavigate = () => { } }) {
                 <tbody className="divide-y divide-slate-50 text-sm">
                   {tenantBreakdown.length === 0 ? (
                     <tr>
-                      <td colSpan="3" className="py-8 text-center text-slate-400">
-                        No active shops recorded.
-                      </td>
+                      <td colSpan="4" className="py-8 text-center text-slate-400">No active shops recorded.</td>
                     </tr>
                   ) : (
                     tenantBreakdown.map((shop, index) => (
                       <tr key={index} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3.5 text-slate-400 font-medium w-8">{index + 1}</td>
                         <td className="py-3.5 font-semibold text-slate-800">{shop.shop_name}</td>
                         <td className="py-3.5 text-center text-slate-600 font-medium">{shop.sales_count || 0}</td>
                         <td className="py-3.5 text-right font-extrabold text-indigo-600">
@@ -359,24 +445,68 @@ export default function Dashboard({ onNavigate = () => { } }) {
             </div>
           </div>
 
-          {/* Right Col: Quick Links */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-            <h3 className="text-lg font-bold text-slate-800">Quick Administrator Links</h3>
-            <div className="space-y-3">
-              <a
-                href="#"
-                onClick={(e) => { e.preventDefault(); onNavigate('/shops'); }}
-                className="w-full flex items-center justify-center space-x-2 bg-slate-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl text-sm shadow transition-colors text-center"
+          {/* Quick Links Panel */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col">
+            <h3 className="text-lg font-bold text-slate-800 mb-1">Administrator Panel</h3>
+            <p className="text-xs text-slate-400 mb-5">Manage your platform components</p>
+
+            <div className="space-y-3 flex-1">
+              <button
+                onClick={() => onNavigate('/shops')}
+                className="w-full flex items-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-xl text-sm shadow transition-colors text-left"
               >
-                <span>Manage Tenant Shops</span>
-              </a>
-              <a
-                href="#"
-                onClick={(e) => { e.preventDefault(); onNavigate('/users'); }}
-                className="w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2.5 px-4 rounded-xl text-sm shadow transition-colors text-center"
+                <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <div>
+                  <p>Manage Tenant Shops</p>
+                  <p className="text-[11px] font-normal text-indigo-200">{metrics.total_shops} shops registered</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => onNavigate('/users')}
+                className="w-full flex items-center gap-3 bg-slate-700 hover:bg-slate-800 text-white font-semibold py-3 px-4 rounded-xl text-sm shadow transition-colors text-left"
               >
-                <span>Manage System Users</span>
-              </a>
+                <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <div>
+                  <p>Manage System Users</p>
+                  <p className="text-[11px] font-normal text-slate-400">{metrics.total_users} users in system</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => onNavigate('/products')}
+                className="w-full flex items-center gap-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold py-3 px-4 rounded-xl text-sm shadow-xs transition-colors text-left"
+              >
+                <svg className="w-5 h-5 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                <span>Global Inventory</span>
+              </button>
+
+              <button
+                onClick={() => onNavigate('/total-revenue')}
+                className="w-full flex items-center gap-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold py-3 px-4 rounded-xl text-sm shadow-xs transition-colors text-left"
+              >
+                <svg className="w-5 h-5 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+                <span>Revenue Reports</span>
+              </button>
+
+              <button
+                onClick={() => onNavigate('/settings')}
+                className="w-full flex items-center gap-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold py-3 px-4 rounded-xl text-sm shadow-xs transition-colors text-left"
+              >
+                <svg className="w-5 h-5 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span>System Settings</span>
+              </button>
             </div>
           </div>
 

@@ -139,19 +139,26 @@ export default function OtherSales() {
       doc.text(`Date Range: ${filterStartDate || '...'} to ${filterEndDate || '...'}`, 14, 22);
     }
     
+    const headers = isSuperAdmin ? ['Date', 'Shop', 'Title', 'Customer', 'Amount', 'Items'] : ['Date', 'Title', 'Customer', 'Amount', 'Items'];
     const tableData = sales.map(sale => {
        const items = parseItems(sale.items).map(i => `${i.item_name} (${i.category})`).join(', ');
-       return [
-         formatDate(sale.sale_date),
+       const row = [
+         formatDate(sale.sale_date)
+       ];
+       if (isSuperAdmin) {
+         row.push(sale.shop_name || 'System / Unknown');
+       }
+       row.push(
          sale.title || 'Other Sale',
          sale.customer_name || 'Walk-in',
          formatCurrencyPDF(sale.amount),
          items
-       ];
+       );
+       return row;
     });
 
     autoTable(doc, {
-      head: [['Date', 'Title', 'Customer', 'Amount', 'Items']],
+      head: [headers],
       body: tableData,
       startY: (filterStartDate || filterEndDate) ? 28 : 22,
       styles: { fontSize: 8 },
@@ -182,10 +189,16 @@ export default function OtherSales() {
       return;
     }
 
+    const targetShopId = isSuperAdmin ? (selectedShopId || formData.shop_id) : '';
+    if (isSuperAdmin && !targetShopId) {
+      triggerAlert('error', 'Please select a tenant shop.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/other-sales${isSuperAdmin ? `?shop_id=${selectedShopId}` : ''}`, {
+      const response = await fetch(`${API_BASE_URL}/other-sales${targetShopId ? `?shop_id=${targetShopId}` : ''}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -217,7 +230,8 @@ export default function OtherSales() {
     if (!window.confirm('Are you sure you want to delete this sale record?')) return;
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/other-sales/${saleId}${isSuperAdmin ? `?shop_id=${selectedShopId}` : ''}`, {
+      const targetShopId = viewSale ? viewSale.shop_id : '';
+      const response = await fetch(`${API_BASE_URL}/other-sales/${saleId}${targetShopId ? `?shop_id=${targetShopId}` : ''}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -238,7 +252,8 @@ export default function OtherSales() {
       customer_phone: '',
       sale_date: new Date().toISOString().split('T')[0],
       notes: '',
-      items: [ { category: 'Miscellaneous', item_name: '', quantity: 1, unit_price: '' } ]
+      items: [ { category: 'Miscellaneous', item_name: '', quantity: 1, unit_price: '' } ],
+      shop_id: ''
     });
   };
 
@@ -309,7 +324,7 @@ export default function OtherSales() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT COLUMN: Entry Form */}
         <div className="lg:col-span-2 space-y-6">
-          {!canWrite ? (
+          {(!isSuperAdmin && !canWrite) ? (
             <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-12 text-center shadow-xs">
               <svg className="w-12 h-12 text-slate-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -371,12 +386,33 @@ export default function OtherSales() {
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center border-b border-slate-100 pb-3">
-              <svg className="w-5 h-5 mr-2 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Quick Entry Form
-            </h3>
+              <h3 className="text-lg font-bold text-slate-800 pb-3 border-b border-slate-100 flex items-center">
+                <svg className="w-5 h-5 mr-2 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Record New Sale
+              </h3>
+
+              {isSuperAdmin && (
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1 mb-5">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Tenant Shop *</label>
+                  <select
+                    value={formData.shop_id || selectedShopId}
+                    onChange={(e) => setFormData({ ...formData, shop_id: e.target.value })}
+                    disabled={!!selectedShopId}
+                    required
+                    className="w-full border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-emerald-500 outline-none text-slate-700 font-medium text-sm bg-white disabled:opacity-75 disabled:bg-slate-100"
+                  >
+                    <option value="">-- Select Shop --</option>
+                    {shops.map((shop) => (
+                      <option key={shop.id} value={shop.id}>{shop.name}</option>
+                    ))}
+                  </select>
+                  {selectedShopId && (
+                    <p className="text-[10px] text-slate-400">Pre-selected from the top Tenant Shop filter. Clear the top filter to change shops.</p>
+                  )}
+                </div>
+              )}
 
             <form onSubmit={handleAddSubmit} className="space-y-5">
               {/* Customer & Date */}
@@ -647,6 +683,11 @@ export default function OtherSales() {
                         <div className="text-sm font-bold text-slate-800 leading-tight">
                           {sale.title || 'Custom Sale'}
                         </div>
+                        {isSuperAdmin && (
+                          <div className="text-[10px] font-bold text-emerald-600 mt-1 uppercase tracking-wider">
+                            Shop: {sale.shop_name || 'Unknown'}
+                          </div>
+                        )}
                         <div className="flex justify-between items-center mt-3 pt-2 border-t border-slate-100">
                           <span className="text-xs font-medium text-slate-500 truncate max-w-[150px] flex items-center">
                             <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -780,7 +821,7 @@ export default function OtherSales() {
             </div>
 
             <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
-              {canWrite && (
+              {(canWrite || isSuperAdmin) && (
                 <button
                   onClick={() => handleDelete(viewSale.id)}
                   className="px-4 py-2.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl text-sm font-bold transition-colors flex items-center space-x-1.5"

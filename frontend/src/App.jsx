@@ -118,7 +118,9 @@ export default function App() {
         localStorage.setItem('user', JSON.stringify(userObj));
         setUser(userObj);
         const savedPath = localStorage.getItem('currentPath');
-        if (!savedPath) {
+        if (savedPath) {
+          navigate(savedPath);
+        } else {
           navigate(getDefaultPath(userObj));
         }
       })
@@ -228,7 +230,7 @@ export default function App() {
     // Super admin guard: redirect to their panel if they navigate to shop-only pages
     if (user.role === 'super_admin') {
       switch (currentPath) {
-        case '/dashboard': return <Dashboard />;
+        case '/dashboard': return <Dashboard onNavigate={(path) => navigate(path)} />;
         case '/shops': return <ManageShops />;
         case '/users': return <SystemUsers />;
         case '/products': return <Inventory />;
@@ -237,7 +239,7 @@ export default function App() {
         case '/other-sales': return <OtherSales />;
         case '/total-revenue': return <TotalRevenue />;
         case '/settings': return <Settings />;
-        default: return <Dashboard />;
+        default: return <Dashboard onNavigate={(path) => navigate(path)} />;
       }
     }
 

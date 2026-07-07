@@ -8,82 +8,53 @@ class DB {
 
     public static function getConnection() {
         if (self::$pdo === null) {
-            // Detect if running locally or on production server
-            $isLocal = false;
-            $httpHost = $_SERVER['HTTP_HOST'] ?? '';
-            if (
-                in_array($httpHost, ['localhost', '127.0.0.1', 'localhost:5000']) ||
-                php_sapi_name() === 'cli'
-            ) {
-                $isLocal = true;
-            }
+            /*
+             * All credentials are read from environment variables.
+             * These are loaded from backend/.env (or the project root .env)
+             * by the loadEnv() function in index.php before any controller runs.
+             *
+             * For local development create backend/.env from backend/.env.example.
+             * For production set DB_HOST / DB_USER / DB_PASS / DB_NAME in your
+             * hosting panel's environment variable settings (or in backend/.env).
+             *
+             * Fallback values are safe, non-sensitive local defaults that only
+             * apply when no .env file is present (e.g. a fresh clone).
+             */
+            $host   = getenv('DB_HOST') ?: (isset($_ENV['DB_HOST']) ? $_ENV['DB_HOST'] : '127.0.0.1');
+            $user   = getenv('DB_USER') ?: (isset($_ENV['DB_USER']) ? $_ENV['DB_USER'] : 'root');
+            $pass   = getenv('DB_PASS') !== false ? getenv('DB_PASS') : (isset($_ENV['DB_PASS']) ? $_ENV['DB_PASS'] : '');
+            $dbName = getenv('DB_NAME') ?: (isset($_ENV['DB_NAME']) ? $_ENV['DB_NAME'] : 'multitenant_pos');
 
-            if ($isLocal) {
-                $defaultHost = '127.0.0.1'; // Using IP instead of localhost avoids socket issues
-                $defaultUser = 'root';
-                $defaultPass = '';
-                $defaultDb   = 'multitenant_pos';
-            } else {
-                $defaultHost = 'sql101.cpanelfree.com';
-                $defaultUser = 'cpfr_42335617';
-                $defaultPass = '0Z47ekqw6U'; // Your production DB password
-                $defaultDb   = 'cpfr_42335617_mk_poss';
-            }
-
-            // Only use environment variables if a .env file actually exists in the project.
-            // This prevents hosting provider defaults (e.g. DB_HOST=localhost) from overriding our values.
-            $envFileExists = false;
-            $envPaths = [
-                dirname(__DIR__) . '/.env',
-                dirname(dirname(__DIR__)) . '/.env'
-            ];
-            foreach ($envPaths as $envPath) {
-                if (file_exists($envPath)) {
-                    $envFileExists = true;
-                    break;
-                }
-            }
-
-            if ($envFileExists) {
-                $host = isset($_ENV['DB_HOST']) ? $_ENV['DB_HOST'] : (getenv('DB_HOST') ?: $defaultHost);
-                $user = isset($_ENV['DB_USER']) ? $_ENV['DB_USER'] : (getenv('DB_USER') ?: $defaultUser);
-                $pass = isset($_ENV['DB_PASS']) ? $_ENV['DB_PASS'] : (getenv('DB_PASS') !== false ? getenv('DB_PASS') : $defaultPass);
-                $dbName = isset($_ENV['DB_NAME']) ? $_ENV['DB_NAME'] : (getenv('DB_NAME') ?: $defaultDb);
-            } else {
-                $host = $defaultHost;
-                $user = $defaultUser;
-                $pass = $defaultPass;
-                $dbName = $defaultDb;
-            }
             $charset = 'utf8mb4';
-
-            $dsn = "mysql:host=$host;dbname=$dbName;charset=$charset";
+            $dsn     = "mysql:host=$host;dbname=$dbName;charset=$charset";
             $options = [
                 PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES   => false,
             ];
- 
+
             try {
                 self::$pdo = new PDO($dsn, $user, $pass, $options);
                 self::runMigrations();
             } catch (\PDOException $e) {
-                // If database does not exist, attempt to create it
+                // If the target database doesn't exist yet, create it automatically
                 if ($e->getCode() == 1049) {
                     try {
                         $tempDsn = "mysql:host=$host;charset=$charset";
                         $tempPdo = new PDO($tempDsn, $user, $pass, $options);
                         $tempPdo->exec("CREATE DATABASE IF NOT EXISTS `$dbName` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-                        
+
                         self::$pdo = new PDO($dsn, $user, $pass, $options);
                         self::runMigrations();
                     } catch (\PDOException $ex) {
                         http_response_code(500);
-                        echo json_encode(['error' => 'Database connection/creation failed: ' . $ex->getMessage()]);
+                        header('Content-Type: application/json');
+                        echo json_encode(['error' => 'Database creation failed: ' . $ex->getMessage()]);
                         exit;
                     }
                 } else {
                     http_response_code(500);
+                    header('Content-Type: application/json');
                     echo json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]);
                     exit;
                 }
@@ -400,13 +371,15 @@ class DB {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             ");
 
-            // Seed Super Admin if table has no users
+            // Seed Super Admin if no super_admin exists yet
             $stmt = $pdo->query("SELECT COUNT(*) FROM `users` WHERE `role` = 'super_admin'");
             if ($stmt->fetchColumn() == 0) {
-                $pdo->exec("
+                $superAdminPassword = password_hash('123456789', PASSWORD_BCRYPT);
+                $seedStmt = $pdo->prepare("
                     INSERT INTO `users` (`name`, `email`, `password_hash`, `role`, `status`)
-                    VALUES ('Super Admin', 'mk.rabbani.cse@gmail.com', '$2a$10\$Jek6c.Ov3IBnEWQ45ImT5.XDEI7bmLlsqYL69nFhY.T0zgaGqfsIO', 'super_admin', 'active')
+                    VALUES ('Super Admin', 'mk.rabbani.cse@gmail.com', ?, 'super_admin', 'active')
                 ");
+                $seedStmt->execute([$superAdminPassword]);
             }
 
         } catch (\PDOException $e) {

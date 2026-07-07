@@ -23,7 +23,7 @@ class OtherSalesController {
             $sql = 'SELECT o.*, s.name AS shop_name 
                     FROM other_sales o 
                     LEFT JOIN shops s ON o.shop_id = s.id 
-                    WHERE ' . ($hasShop ? 'o.shop_id = ?' : '1=1');
+                    WHERE ' . ($hasShop ? 'o.shop_id = ?' : 'o.shop_id IS NOT NULL');
             $params = $hasShop ? [$shopId] : [];
 
             if (!empty($startDate) && !empty($endDate)) {
@@ -118,10 +118,11 @@ class OtherSalesController {
     // For now, let's just allow it with full replacement of items.
     public static function updateOtherSale($id, $requestData) {
         Auth::authenticate();
-        Auth::enforceTenant(true);
+        Auth::enforceTenant();
         Auth::authorize(['shop_admin']);
 
         $saleId = (int)$id;
+        $isSuperAdmin = Auth::$user['role'] === 'super_admin';
         $shopId = Auth::$shopId;
 
         $customerName = $requestData['customer_name'] ?? null;
@@ -157,14 +158,25 @@ class OtherSalesController {
         }
 
         try {
-            $stmt = DB::query('SELECT id FROM other_sales WHERE id = ? AND shop_id = ?', [$saleId, $shopId]);
-            if (!$stmt->fetch()) {
-                Auth::jsonError('Sale record not found or access denied.', 404);
+            if ($isSuperAdmin) {
+                $stmt = DB::query('SELECT id, shop_id FROM other_sales WHERE id = ?', [$saleId]);
+                $sale = $stmt->fetch();
+                if (!$sale) {
+                    Auth::jsonError('Sale record not found.', 404);
+                }
+                if ($shopId === null) {
+                    $shopId = (int)$sale['shop_id'];
+                }
+            } else {
+                $stmt = DB::query('SELECT id FROM other_sales WHERE id = ? AND shop_id = ?', [$saleId, $shopId]);
+                if (!$stmt->fetch()) {
+                    Auth::jsonError('Sale record not found or access denied.', 404);
+                }
             }
 
             DB::query(
-                'UPDATE other_sales SET title = ?, customer_name = ?, customer_phone = ?, items = ?, amount = ?, sale_date = ?, notes = ? WHERE id = ? AND shop_id = ?',
-                [$title, $customerName, $customerPhone, $itemsJson, $amount, $saleDate, $notes, $saleId, $shopId]
+                'UPDATE other_sales SET title = ?, customer_name = ?, customer_phone = ?, items = ?, amount = ?, sale_date = ?, notes = ?, shop_id = ? WHERE id = ?',
+                [$title, $customerName, $customerPhone, $itemsJson, $amount, $saleDate, $notes, $shopId, $saleId]
             );
 
             header('Content-Type: application/json');
@@ -178,19 +190,28 @@ class OtherSalesController {
 
     public static function deleteOtherSale($id) {
         Auth::authenticate();
-        Auth::enforceTenant(true);
+        Auth::enforceTenant();
         Auth::authorize(['shop_admin']);
 
         $saleId = (int)$id;
+        $isSuperAdmin = Auth::$user['role'] === 'super_admin';
         $shopId = Auth::$shopId;
 
         try {
-            $stmt = DB::query('SELECT id FROM other_sales WHERE id = ? AND shop_id = ?', [$saleId, $shopId]);
+            if ($isSuperAdmin) {
+                $stmt = DB::query('SELECT id FROM other_sales WHERE id = ?', [$saleId]);
+            } else {
+                $stmt = DB::query('SELECT id FROM other_sales WHERE id = ? AND shop_id = ?', [$saleId, $shopId]);
+            }
             if (!$stmt->fetch()) {
                 Auth::jsonError('Sale record not found or access denied.', 404);
             }
 
-            DB::query('DELETE FROM other_sales WHERE id = ? AND shop_id = ?', [$saleId, $shopId]);
+            if ($isSuperAdmin) {
+                DB::query('DELETE FROM other_sales WHERE id = ?', [$saleId]);
+            } else {
+                DB::query('DELETE FROM other_sales WHERE id = ? AND shop_id = ?', [$saleId, $shopId]);
+            }
 
             header('Content-Type: application/json');
             echo json_encode(['message' => 'Sale entry deleted successfully.']);
