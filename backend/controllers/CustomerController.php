@@ -13,12 +13,16 @@ class CustomerController {
         Auth::enforceTenant();
 
         $shopId = Auth::$shopId;
+        $hasShop = $shopId !== null;
 
         try {
-            $stmt = DB::query(
-                'SELECT id, name, phone, email, address, due_balance, loyalty_points FROM customers WHERE shop_id = ? ORDER BY name ASC',
-                [$shopId]
-            );
+            $sql = 'SELECT c.id, c.name, c.phone, c.email, c.address, c.due_balance, c.loyalty_points, sh.name AS shop_name 
+                    FROM customers c 
+                    LEFT JOIN shops sh ON c.shop_id = sh.id 
+                    WHERE ' . ($hasShop ? 'c.shop_id = ?' : '1=1') . ' 
+                    ORDER BY c.name ASC';
+            $params = $hasShop ? [$shopId] : [];
+            $stmt = DB::query($sql, $params);
             $customers = $stmt->fetchAll();
 
             foreach ($customers as &$c) {
@@ -38,7 +42,7 @@ class CustomerController {
 
     public static function createCustomer($requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin', 'shop_staff']);
 
         $shopId = Auth::$shopId;
@@ -73,7 +77,7 @@ class CustomerController {
 
     public static function updateCustomer($id, $requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin', 'shop_staff']);
 
         $customerId = (int)$id;
@@ -110,7 +114,7 @@ class CustomerController {
 
     public static function deleteCustomer($id) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $customerId = (int)$id;
@@ -142,7 +146,7 @@ class CustomerController {
 
     public static function bulkUpload() {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $shopId = Auth::$shopId;

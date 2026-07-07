@@ -35,6 +35,7 @@ function decodeToken(token) {
 function getDefaultPath(user) {
   if (!user) return '/checkout';
   if (user.role === 'super_admin') return '/dashboard';
+  if (user.role === 'shop_admin') return '/dashboard';
   if (user.role === 'shop_staff') {
     const allowed = user.allowed_sections || [];
     return allowed.length > 0 ? allowed[0] : '/checkout';
@@ -46,7 +47,17 @@ export default function App() {
   const [user, setUser] = useState(null);       // null = not logged in
   const [loading, setLoading] = useState(true); // checking stored token on startup
   const [suspendedMessage, setSuspendedMessage] = useState(''); // shop suspended message
-  const [currentPath, setCurrentPath] = useState('/checkout');
+  const [currentPath, setCurrentPath] = useState(() => {
+    const saved = localStorage.getItem('currentPath');
+    if (saved) return saved;
+    const storedUser = localStorage.getItem('user');
+    return getDefaultPath(storedUser ? JSON.parse(storedUser) : null);
+  });
+
+  const navigate = (path) => {
+    setCurrentPath(path);
+    localStorage.setItem('currentPath', path);
+  };
   const [lowStockAlerts, setLowStockAlerts] = useState([]);
   const [expiryAlerts, setExpiryAlerts] = useState([]);
   const [heldBillsCount, setHeldBillsCount] = useState(0);
@@ -82,7 +93,7 @@ export default function App() {
         // If 403, check if shop is suspended
         if (res.status === 403) {
           const data = await res.json().catch(() => ({}));
-          const msg = data.error || 'Access denied.';
+          const msg = `${data.error || 'Access denied.'} (from /auth/me)`;
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           setSuspendedMessage(msg);
@@ -106,7 +117,10 @@ export default function App() {
         };
         localStorage.setItem('user', JSON.stringify(userObj));
         setUser(userObj);
-        setCurrentPath(getDefaultPath(userObj));
+        const savedPath = localStorage.getItem('currentPath');
+        if (!savedPath) {
+          navigate(getDefaultPath(userObj));
+        }
       })
       .catch(() => {
         // Invalid/mock token — force logout
@@ -133,7 +147,7 @@ export default function App() {
           // If the shop is suspended, the server returns 403 — force logout
           if (shopResponse.status === 403) {
             const data = await shopResponse.json().catch(() => ({}));
-            const msg = data.error || 'This shop has been suspended.';
+            const msg = `${data.error || 'This shop has been suspended.'} (from /shops/my-shop)`;
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             setUser(null);
@@ -195,13 +209,14 @@ export default function App() {
   // Called by Login component on successful authentication
   const handleLoginSuccess = (userObj) => {
     setUser(userObj);
-    setCurrentPath(getDefaultPath(userObj));
+    navigate(getDefaultPath(userObj));
   };
 
   // Logout
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('currentPath');
     setUser(null);
     setLowStockAlerts([]);
     setExpiryAlerts([]);
@@ -232,7 +247,7 @@ export default function App() {
       if (!allowed.includes(currentPath)) {
         const firstAllowed = allowed.length > 0 ? allowed[0] : null;
         if (firstAllowed && firstAllowed !== currentPath) {
-          setTimeout(() => setCurrentPath(firstAllowed), 0);
+          setTimeout(() => navigate(firstAllowed), 0);
         } else if (!firstAllowed) {
           return (
             <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
@@ -254,7 +269,7 @@ export default function App() {
     switch (currentPath) {
       case '/dashboard': return <Dashboard />;
       case '/checkout': return <Checkout resumedHeldBill={resumedHeldBill} onClearResumedHeldBill={() => setResumedHeldBill(null)} onHeldBillsChange={(count) => setHeldBillsCount(count)} />;
-      case '/held-bills': return <HeldBills onResume={(bill) => { setResumedHeldBill(bill); setCurrentPath('/checkout'); }} onHeldBillsChange={(count) => setHeldBillsCount(count)} />;
+      case '/held-bills': return <HeldBills onResume={(bill) => { setResumedHeldBill(bill); navigate('/checkout'); }} onHeldBillsChange={(count) => setHeldBillsCount(count)} />;
       case '/products': return <Inventory />;
       case '/suppliers': return <Suppliers />;
       case '/customers': return <Customers />;
@@ -321,7 +336,7 @@ export default function App() {
       expiryItems={expiryAlerts}
       heldBillsCount={heldBillsCount}
       currentPath={currentPath}
-      onNavigate={(path) => setCurrentPath(path)}
+      onNavigate={(path) => navigate(path)}
       onLogout={handleLogout}
     >
       {renderPageContent()}

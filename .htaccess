@@ -1,0 +1,12 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  
+  # Pass API / backend requests directly to the backend/ folder
+  RewriteRule ^backend/(.*)$ backend/index.php [L,QSA]
+  
+  # SPA routing: Redirect all other requests to the React index.html
+  RewriteCond %{REQUEST_URI} !^/backend/
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^(.*)$ index.html [L,QSA]
+</IfModule>

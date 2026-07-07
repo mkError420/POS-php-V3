@@ -123,7 +123,7 @@ class ProductController {
 
     public static function createProduct($requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $shopId = Auth::$shopId;
@@ -182,7 +182,7 @@ class ProductController {
 
     public static function updateProduct($id, $requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $productId = (int)$id;
@@ -255,7 +255,7 @@ class ProductController {
 
     public static function deleteProduct($id) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $productId = (int)$id;
@@ -289,7 +289,7 @@ class ProductController {
 
     public static function bulkUploadProducts() {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $shopId = Auth::$shopId;

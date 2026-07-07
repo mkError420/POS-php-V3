@@ -13,6 +13,7 @@ export default function OtherSales() {
   const [alert, setAlert] = useState(null);
   const [shops, setShops] = useState([]);
   const [selectedShopId, setSelectedShopId] = useState('');
+  const canWrite = !isSuperAdmin || !!selectedShopId;
  
   // View Details Modal
   const [viewSale, setViewSale] = useState(null);
@@ -184,7 +185,7 @@ export default function OtherSales() {
     setSubmitting(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/other-sales`, {
+      const response = await fetch(`${API_BASE_URL}/other-sales${isSuperAdmin ? `?shop_id=${selectedShopId}` : ''}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -216,7 +217,7 @@ export default function OtherSales() {
     if (!window.confirm('Are you sure you want to delete this sale record?')) return;
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/other-sales/${saleId}`, {
+      const response = await fetch(`${API_BASE_URL}/other-sales/${saleId}${isSuperAdmin ? `?shop_id=${selectedShopId}` : ''}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -308,6 +309,18 @@ export default function OtherSales() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT COLUMN: Entry Form */}
         <div className="lg:col-span-2 space-y-6">
+          {!canWrite ? (
+            <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-12 text-center shadow-xs">
+              <svg className="w-12 h-12 text-slate-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <h3 className="text-lg font-bold text-slate-700 mb-2">Select a Shop First</h3>
+              <p className="text-sm text-slate-500 max-w-sm mx-auto">
+                Please select a tenant shop from the dropdown at the top to view and manage other sales for that shop.
+              </p>
+            </div>
+          ) : (
+            <>
           
           {/* Quick Category Shortcuts */}
           <div>
@@ -565,7 +578,9 @@ export default function OtherSales() {
               </div>
             </form>
           </div>
-        </div>
+        </>
+      )}
+      </div>
 
         {/* RIGHT COLUMN: Recent Sales */}
         <div className="lg:col-span-1 space-y-4">
@@ -765,15 +780,17 @@ export default function OtherSales() {
             </div>
 
             <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
-              <button
-                onClick={() => handleDelete(viewSale.id)}
-                className="px-4 py-2.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl text-sm font-bold transition-colors flex items-center space-x-1.5"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                <span>Delete</span>
-              </button>
+              {canWrite && (
+                <button
+                  onClick={() => handleDelete(viewSale.id)}
+                  className="px-4 py-2.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl text-sm font-bold transition-colors flex items-center space-x-1.5"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span>Delete</span>
+                </button>
+              )}
               <button
                 onClick={() => setViewSale(null)}
                 className="px-6 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-sm font-bold transition-all shadow-md hover:shadow-lg"

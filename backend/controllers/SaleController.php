@@ -10,7 +10,7 @@ class SaleController {
 
     public static function createSale($requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin', 'shop_staff']);
 
         $shopId = Auth::$shopId;
@@ -424,7 +424,7 @@ class SaleController {
 
     public static function deleteSale($id) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $saleId = (int)$id;
@@ -499,7 +499,7 @@ class SaleController {
 
     public static function updateSale($id, $requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $saleId = (int)$id;
@@ -791,7 +791,7 @@ class SaleController {
 
     public static function bulkDeleteSales($requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $ids = $requestData['ids'] ?? [];

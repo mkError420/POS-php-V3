@@ -16,6 +16,7 @@ export default function Wastage() {
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [shops, setShops] = useState([]);
   const [selectedShopId, setSelectedShopId] = useState('');
+  const canWrite = !isSuperAdmin || !!selectedShopId;
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -64,10 +65,17 @@ export default function Wastage() {
   };
  
   const fetchProducts = async () => {
-    if (isSuperAdmin) return;
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/products`, {
+      let url = `${API_BASE_URL}/products`;
+      if (isSuperAdmin) {
+        if (!selectedShopId) {
+          setProducts([]);
+          return;
+        }
+        url += `?shop_id=${selectedShopId}`;
+      }
+      const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Failed to fetch inventory products.');
@@ -160,7 +168,7 @@ export default function Wastage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/wastages`, {
+      const response = await fetch(`${API_BASE_URL}/wastages${isSuperAdmin ? `?shop_id=${selectedShopId}` : ''}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -193,7 +201,7 @@ export default function Wastage() {
     if (!window.confirm('Are you sure you want to delete this wastage adjustment? This will restore the stock quantity to this product.')) return;
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/wastages/${wastageId}`, {
+      const response = await fetch(`${API_BASE_URL}/wastages/${wastageId}${isSuperAdmin ? `?shop_id=${selectedShopId}` : ''}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -317,9 +325,9 @@ export default function Wastage() {
                 </svg>
                 <span>Export CSV</span>
             </button>
-            {!isSuperAdmin && (
-            <button
-              onClick={() => { resetForm(); setShowAddModal(true); }}
+            {canWrite && (
+              <button
+                onClick={() => { resetForm(); setShowAddModal(true); }}
               className="bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2.5 px-5 rounded-xl text-sm shadow-sm transition-colors flex items-center space-x-2 w-full sm:w-auto justify-center"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -623,7 +631,7 @@ export default function Wastage() {
                 <th className="p-4">Estimated Loss</th>
                 <th className="p-4">Reason</th>
                 <th className="p-4">Notes</th>
-                {!isSuperAdmin && <th className="p-4 text-center pr-6">Action</th>}
+                {canWrite && <th className="p-4 text-center pr-6">Action</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
@@ -664,7 +672,7 @@ export default function Wastage() {
                       </span>
                     </td>
                     <td className="p-4 text-slate-500 italic max-w-xs truncate">{w.notes || '-'}</td>
-                    {!isSuperAdmin && (
+                    {canWrite && (
                       <td className="p-4 text-center pr-6">
                         <button
                           onClick={() => handleDelete(w.id)}

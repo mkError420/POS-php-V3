@@ -97,13 +97,19 @@ class Auth {
             self::jsonError('Authentication required.', 401);
         }
 
+        // Allow super_admin to perform all actions
+        if (self::$user['role'] === 'super_admin') {
+            return;
+        }
+
         if (!in_array(self::$user['role'], $roles)) {
+            error_log("Authorization failed: User role '" . self::$user['role'] . "' not in allowed roles [" . implode(', ', $roles) . "] for URI: " . ($_SERVER['REQUEST_URI'] ?? ''));
             self::jsonError('Forbidden. Insufficient permissions.', 403);
         }
     }
 
-    public static function enforceTenant() {
-        if (self::$user['role'] !== 'super_admin' && self::$shopId === null) {
+    public static function enforceTenant($force = false) {
+        if (($force || self::$user['role'] !== 'super_admin') && self::$shopId === null) {
             self::jsonError('Bad request. Tenant shop identification is missing.', 400);
         }
     }

@@ -360,7 +360,7 @@ class AnalyticsController {
                 $globalOtherSales = (float)($stmt->fetchColumn() ?: 0);
                 $totalGlobalRevenue = (float)($salesStats['global_revenue'] ?? 0) + $globalOtherSales;
 
-                $stmt = DB::query('SELECT sh.name as shop_name, COUNT(s.id) as sales_count, SUM(s.final_amount) as shop_revenue
+                $stmt = DB::query('SELECT sh.id as shop_id, sh.name as shop_name, COUNT(s.id) as sales_count, SUM(s.final_amount) as shop_revenue
                                    FROM shops sh
                                    LEFT JOIN sales s ON sh.id = s.shop_id
                                    GROUP BY sh.id

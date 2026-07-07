@@ -130,7 +130,7 @@ class ManualOrderController {
 
     public static function createManualOrder($requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin', 'shop_staff']);
 
         $shopId = Auth::$shopId;
@@ -206,7 +206,7 @@ class ManualOrderController {
 
     public static function updateManualOrder($id, $requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin', 'shop_staff']);
 
         $orderId = (int)$id;
@@ -299,7 +299,7 @@ class ManualOrderController {
 
     public static function deleteManualOrder($id) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin', 'shop_staff']);
 
         $orderId = (int)$id;
@@ -330,7 +330,7 @@ class ManualOrderController {
 
     public static function confirmManualOrder($id) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin', 'shop_staff']);
 
         $orderId = (int)$id;
@@ -488,7 +488,7 @@ class ManualOrderController {
 
     public static function payManualOrderSaleDue($saleId, $requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin', 'shop_staff']);
 
         $saleId = (int)$saleId;

@@ -15,6 +15,7 @@ export default function OtherCost() {
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [shops, setShops] = useState([]);
   const [selectedShopId, setSelectedShopId] = useState('');
+  const canWrite = !isSuperAdmin || !!selectedShopId;
  
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -96,7 +97,7 @@ export default function OtherCost() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/other-costs`, {
+      const response = await fetch(`${API_BASE_URL}/other-costs${isSuperAdmin ? `?shop_id=${selectedShopId}` : ''}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -139,7 +140,7 @@ export default function OtherCost() {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/other-costs/${currentCost.id}`, {
+      const response = await fetch(`${API_BASE_URL}/other-costs/${currentCost.id}${isSuperAdmin ? `?shop_id=${selectedShopId}` : ''}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -170,7 +171,7 @@ export default function OtherCost() {
     if (!window.confirm('Are you sure you want to delete this cost record?')) return;
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/other-costs/${costId}`, {
+      const response = await fetch(`${API_BASE_URL}/other-costs/${costId}${isSuperAdmin ? `?shop_id=${selectedShopId}` : ''}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -301,7 +302,7 @@ export default function OtherCost() {
             </svg>
             <span>Export Expenses</span>
           </button>
-          {!isSuperAdmin && (
+          {canWrite && (
             <button
               onClick={() => { resetForm(); setShowAddModal(true); }}
               className="bg-slate-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl text-sm shadow-sm transition-colors flex items-center space-x-2"
@@ -605,7 +606,7 @@ export default function OtherCost() {
                 <th className="p-4">Description</th>
                 <th className="p-4">Amount</th>
                 <th className="p-4">Notes</th>
-                {!isSuperAdmin && <th className="p-4 text-center">Actions</th>}
+                {canWrite && <th className="p-4 text-center">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
@@ -631,7 +632,7 @@ export default function OtherCost() {
                     <td className="p-4 font-bold text-slate-800">{cost.title}</td>
                     <td className="p-4 font-black text-rose-600">{formatCurrency(cost.amount)}</td>
                     <td className="p-4 text-slate-500 italic max-w-xs truncate">{cost.notes || '-'}</td>
-                    {!isSuperAdmin && (
+                    {canWrite && (
                       <td className="p-4 text-center space-x-2 whitespace-nowrap">
                         <button
                           onClick={() => openEdit(cost)}

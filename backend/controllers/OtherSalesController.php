@@ -55,7 +55,7 @@ class OtherSalesController {
 
     public static function createOtherSale($requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $shopId = Auth::$shopId;
@@ -118,7 +118,7 @@ class OtherSalesController {
     // For now, let's just allow it with full replacement of items.
     public static function updateOtherSale($id, $requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $saleId = (int)$id;
@@ -178,7 +178,7 @@ class OtherSalesController {
 
     public static function deleteOtherSale($id) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $saleId = (int)$id;

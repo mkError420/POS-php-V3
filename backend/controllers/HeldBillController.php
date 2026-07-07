@@ -57,7 +57,8 @@ class HeldBillController {
 
     public static function createHeldBill($requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
+        Auth::authorize(['shop_admin', 'shop_staff']);
 
         $shopId = Auth::$shopId;
         $userId = Auth::$user['id'];
@@ -109,7 +110,8 @@ class HeldBillController {
 
     public static function updateHeldBill($id, $requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
+        Auth::authorize(['shop_admin', 'shop_staff']);
 
         $heldBillId = (int)$id;
         $shopId = Auth::$shopId;
@@ -142,7 +144,8 @@ class HeldBillController {
 
     public static function payHeldBillDue($id, $requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
+        Auth::authorize(['shop_admin', 'shop_staff']);
 
         $heldBillId = (int)$id;
         $shopId = Auth::$shopId;
@@ -254,7 +257,8 @@ class HeldBillController {
 
     public static function deleteHeldBill($id) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
+        Auth::authorize(['shop_admin', 'shop_staff']);
 
         $heldBillId = (int)$id;
         $shopId = Auth::$shopId;

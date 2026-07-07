@@ -59,7 +59,7 @@ class OtherController {
 
     public static function createOtherCost($requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $shopId = Auth::$shopId;
@@ -94,7 +94,7 @@ class OtherController {
 
     public static function updateOtherCost($id, $requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $costId = (int)$id;
@@ -131,7 +131,7 @@ class OtherController {
 
     public static function deleteOtherCost($id) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $costId = (int)$id;
@@ -163,16 +163,17 @@ class OtherController {
         Auth::enforceTenant();
 
         $shopId = Auth::$shopId;
+        $hasShop = $shopId !== null;
 
         try {
-            $stmt = DB::query(
-                'SELECT w.*, p.name AS product_name, p.sku AS product_sku 
-                 FROM wastages w 
-                 JOIN products p ON w.product_id = p.id 
-                 WHERE w.shop_id = ?
-                 ORDER BY w.adjusted_at DESC',
-                [$shopId]
-            );
+            $sql = 'SELECT w.*, p.name AS product_name, p.sku AS product_sku, sh.name AS shop_name 
+                    FROM wastages w 
+                    JOIN products p ON w.product_id = p.id 
+                    LEFT JOIN shops sh ON w.shop_id = sh.id
+                    WHERE ' . ($hasShop ? 'w.shop_id = ?' : '1=1') . '
+                    ORDER BY w.adjusted_at DESC';
+            $params = $hasShop ? [$shopId] : [];
+            $stmt = DB::query($sql, $params);
             $wastages = $stmt->fetchAll();
 
             foreach ($wastages as &$w) {
@@ -194,7 +195,7 @@ class OtherController {
 
     public static function createWastage($requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $shopId = Auth::$shopId;
@@ -257,7 +258,7 @@ class OtherController {
 
     public static function deleteWastage($id) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $wastageId = (int)$id;
@@ -304,18 +305,19 @@ class OtherController {
         Auth::enforceTenant();
 
         $shopId = Auth::$shopId;
+        $hasShop = $shopId !== null;
 
         try {
-            $stmt = DB::query(
-                'SELECT cr.*, p.name AS product_name, p.sku AS product_sku, c.name AS customer_name, s.created_at AS sale_date 
-                 FROM customer_returns cr 
-                 JOIN products p ON cr.product_id = p.id 
-                 LEFT JOIN customers c ON cr.customer_id = c.id 
-                 LEFT JOIN sales s ON cr.sale_id = s.id 
-                 WHERE cr.shop_id = ? 
-                 ORDER BY cr.created_at DESC',
-                [$shopId]
-            );
+            $sql = 'SELECT cr.*, p.name AS product_name, p.sku AS product_sku, c.name AS customer_name, s.created_at AS sale_date, sh.name AS shop_name 
+                    FROM customer_returns cr 
+                    JOIN products p ON cr.product_id = p.id 
+                    LEFT JOIN customers c ON cr.customer_id = c.id 
+                    LEFT JOIN sales s ON cr.sale_id = s.id 
+                    LEFT JOIN shops sh ON cr.shop_id = sh.id
+                    WHERE ' . ($hasShop ? 'cr.shop_id = ?' : '1=1') . ' 
+                    ORDER BY cr.created_at DESC';
+            $params = $hasShop ? [$shopId] : [];
+            $stmt = DB::query($sql, $params);
             $returns = $stmt->fetchAll();
 
             foreach ($returns as &$r) {
@@ -341,7 +343,7 @@ class OtherController {
 
     public static function createReturn($requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin', 'shop_staff']);
 
         $shopId = Auth::$shopId;
@@ -448,7 +450,7 @@ class OtherController {
 
     public static function deleteReturn($id) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $returnId = (int)$id;
@@ -506,19 +508,21 @@ class OtherController {
         Auth::enforceTenant();
 
         $shopId = Auth::$shopId;
+        $hasShop = $shopId !== null;
         $productId = $_GET['product_id'] ?? null;
         $adjustmentType = $_GET['adjustment_type'] ?? null;
         $startDate = $_GET['start_date'] ?? null;
         $endDate = $_GET['end_date'] ?? null;
 
         try {
-            $sql = 'SELECT ia.*, p.name AS product_name, p.sku AS product_sku, u.name AS adjusted_by_name
+            $sql = 'SELECT ia.*, p.name AS product_name, p.sku AS product_sku, u.name AS adjusted_by_name, sh.name AS shop_name
                     FROM inventory_adjustments ia
                     JOIN products p ON ia.product_id = p.id
                     JOIN users u ON ia.adjusted_by = u.id
-                    WHERE ia.shop_id = ?';
+                    LEFT JOIN shops sh ON ia.shop_id = sh.id
+                    WHERE ' . ($hasShop ? 'ia.shop_id = ?' : '1=1');
             
-            $params = [$shopId];
+            $params = $hasShop ? [$shopId] : [];
 
             if (!empty($productId)) {
                 $sql .= ' AND ia.product_id = ?';
@@ -563,7 +567,7 @@ class OtherController {
 
     public static function createAdjustment($requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $shopId = Auth::$shopId;

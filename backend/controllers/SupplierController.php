@@ -13,12 +13,16 @@ class SupplierController {
         Auth::enforceTenant();
 
         $shopId = Auth::$shopId;
+        $hasShop = $shopId !== null;
 
         try {
-            $stmt = DB::query(
-                'SELECT id, name, contact_name, email, phone, due_balance FROM suppliers WHERE shop_id = ? ORDER BY name ASC',
-                [$shopId]
-            );
+            $sql = 'SELECT s.id, s.name, s.contact_name, s.email, s.phone, s.due_balance, sh.name AS shop_name 
+                    FROM suppliers s 
+                    LEFT JOIN shops sh ON s.shop_id = sh.id 
+                    WHERE ' . ($hasShop ? 's.shop_id = ?' : '1=1') . ' 
+                    ORDER BY s.name ASC';
+            $params = $hasShop ? [$shopId] : [];
+            $stmt = DB::query($sql, $params);
             $suppliers = $stmt->fetchAll();
 
             foreach ($suppliers as &$s) {
@@ -37,7 +41,7 @@ class SupplierController {
 
     public static function createSupplier($requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $shopId = Auth::$shopId;
@@ -350,7 +354,7 @@ class SupplierController {
 
     public static function createPurchaseOrder($requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $shopId = Auth::$shopId;
@@ -495,7 +499,7 @@ class SupplierController {
 
     public static function updatePurchaseOrder($id, $requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $poId = (int)$id;
@@ -567,7 +571,7 @@ class SupplierController {
 
     public static function updatePurchaseOrderStatus($id, $requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $poId = (int)$id;
@@ -724,7 +728,7 @@ class SupplierController {
 
     public static function deletePurchaseOrder($id) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $poId = (int)$id;
@@ -798,7 +802,7 @@ class SupplierController {
 
     public static function deletePurchaseOrderItem($id, $productId) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $poId = (int)$id;
@@ -1063,7 +1067,7 @@ class SupplierController {
 
     public static function updateSupplier($id, $requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $supplierId = (int)$id;
@@ -1099,7 +1103,7 @@ class SupplierController {
 
     public static function deleteSupplier($id) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $supplierId = (int)$id;
@@ -1130,7 +1134,7 @@ class SupplierController {
 
     public static function payPurchaseOrder($id, $requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $poId = (int)$id;
@@ -1195,7 +1199,7 @@ class SupplierController {
 
     public static function createSupplierReturn($id, $requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $supplierId = (int)$id;
@@ -1267,7 +1271,7 @@ class SupplierController {
 
     public static function updateSupplierReturn($logId, $requestData) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $logId = (int)$logId;
@@ -1341,7 +1345,7 @@ class SupplierController {
 
     public static function deleteSupplierReturn($logId) {
         Auth::authenticate();
-        Auth::enforceTenant();
+        Auth::enforceTenant(true);
         Auth::authorize(['shop_admin']);
 
         $logId = (int)$logId;
