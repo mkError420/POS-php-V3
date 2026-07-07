@@ -46,6 +46,7 @@ export default function Checkout({ onHeldBillsChange = () => { }, resumedHeldBil
   // UI States
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [alert, setAlert] = useState(null); // { type: 'success' | 'error', message }
   const [receipt, setReceipt] = useState(null); // Receipts detail storage after checkout
@@ -740,6 +741,38 @@ export default function Checkout({ onHeldBillsChange = () => { }, resumedHeldBil
       triggerAlert('error', err.message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // --- DELETE TRANSACTION (SHOP ADMIN ONLY) ---
+  const handleDeleteSale = async (saleId) => {
+    if (!saleId) return;
+    if (!window.confirm(`Are you sure you want to delete Sale #${saleId}?\n\nThis will:\n• Restore all product stock quantities\n• Reverse any customer due balance\n• Remove this transaction from all reports\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/sales/${saleId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to delete sale.');
+
+      triggerAlert('success', data.message);
+      setReceipt(null);
+
+      // Refresh product stock list & customer list
+      fetchProducts(search);
+      fetchCustomers();
+      fetchHeldBills();
+    } catch (err) {
+      triggerAlert('error', err.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -1592,6 +1625,24 @@ export default function Checkout({ onHeldBillsChange = () => { }, resumedHeldBil
                   </svg>
                   <span>Print {previewMode === 'thermal' ? 'Thermal' : 'Regular A4'}</span>
                 </button>
+                {currentUser?.role === 'shop_admin' && (
+                  <button
+                    onClick={() => handleDeleteSale(receipt.sale_id)}
+                    disabled={deleting}
+                    className="w-full bg-rose-50 hover:bg-rose-100 disabled:bg-slate-100 disabled:text-slate-400 text-rose-700 border border-rose-200 disabled:border-slate-200 font-bold py-2.5 rounded-xl text-sm transition-all flex items-center justify-center space-x-2"
+                  >
+                    {deleting ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-rose-700"></div>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        <span>Delete Sale</span>
+                      </>
+                    )}
+                  </button>
+                )}
                 <button
                   onClick={() => setReceipt(null)}
                   className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-xl text-sm transition-colors"
