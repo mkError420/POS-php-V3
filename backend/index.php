@@ -3,6 +3,9 @@
  * PHP Front Controller & Router for POS Backend (Fixed for Subfolder Hosting)
  */
 
+// Set Default Timezone to Bangladesh (BD Time)
+date_default_timezone_set('Asia/Dhaka');
+
 // Handle dynamic CORS origin requirements for Allow-Credentials
 if (isset($_SERVER['HTTP_ORIGIN'])) {
     header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);

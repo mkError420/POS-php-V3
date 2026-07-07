@@ -694,6 +694,9 @@ class OtherController {
         $address = $requestData['address'] ?? null;
         $taxRate = isset($requestData['tax_rate']) ? (float)$requestData['tax_rate'] : null;
         $logo = isset($requestData['logo']) ? $requestData['logo'] : null;
+        $loyaltyEnabled = isset($requestData['loyalty_enabled']) ? (int)$requestData['loyalty_enabled'] : null;
+        $loyaltyPointEarnRate = isset($requestData['loyalty_point_earn_rate']) ? (float)$requestData['loyalty_point_earn_rate'] : null;
+        $loyaltyPointValue = isset($requestData['loyalty_point_value']) ? (float)$requestData['loyalty_point_value'] : null;
 
         if (empty($name) || empty($email)) {
             Auth::jsonError('Shop name and email are required.', 400);
@@ -717,6 +720,21 @@ class OtherController {
             if ($logo !== null) {
                 $updateFields[] = 'logo = ?';
                 $params[] = $logo;
+            }
+
+            if ($loyaltyEnabled !== null) {
+                $updateFields[] = 'loyalty_enabled = ?';
+                $params[] = $loyaltyEnabled;
+            }
+
+            if ($loyaltyPointEarnRate !== null) {
+                $updateFields[] = 'loyalty_point_earn_rate = ?';
+                $params[] = $loyaltyPointEarnRate;
+            }
+
+            if ($loyaltyPointValue !== null) {
+                $updateFields[] = 'loyalty_point_value = ?';
+                $params[] = $loyaltyPointValue;
             }
 
             $params[] = $shopId;

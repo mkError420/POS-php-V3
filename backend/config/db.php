@@ -35,6 +35,7 @@ class DB {
 
             try {
                 self::$pdo = new PDO($dsn, $user, $pass, $options);
+                self::$pdo->exec("SET time_zone = '+06:00'");
                 self::runMigrations();
             } catch (\PDOException $e) {
                 // If the target database doesn't exist yet, create it automatically
@@ -45,6 +46,7 @@ class DB {
                         $tempPdo->exec("CREATE DATABASE IF NOT EXISTS `$dbName` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
 
                         self::$pdo = new PDO($dsn, $user, $pass, $options);
+                        self::$pdo->exec("SET time_zone = '+06:00'");
                         self::runMigrations();
                     } catch (\PDOException $ex) {
                         http_response_code(500);
@@ -247,6 +249,33 @@ class DB {
             // Check if logo column exists on shops table
             if ($tableExists('shops') && !$columnExists('shops', 'logo')) {
                 $pdo->exec("ALTER TABLE `shops` ADD COLUMN `logo` LONGTEXT NULL");
+            }
+
+            // Check if loyalty program columns exist on shops table
+            if ($tableExists('shops') && !$columnExists('shops', 'loyalty_enabled')) {
+                $pdo->exec("ALTER TABLE `shops` ADD COLUMN `loyalty_enabled` TINYINT(1) NOT NULL DEFAULT 0");
+            }
+            if ($tableExists('shops') && !$columnExists('shops', 'loyalty_point_earn_rate')) {
+                $pdo->exec("ALTER TABLE `shops` ADD COLUMN `loyalty_point_earn_rate` DECIMAL(10,2) NOT NULL DEFAULT 100.00");
+            }
+            if ($tableExists('shops') && !$columnExists('shops', 'loyalty_point_value')) {
+                $pdo->exec("ALTER TABLE `shops` ADD COLUMN `loyalty_point_value` DECIMAL(10,2) NOT NULL DEFAULT 1.00");
+            }
+
+            // Check if loyalty_points column exists on customers table
+            if ($tableExists('customers') && !$columnExists('customers', 'loyalty_points')) {
+                $pdo->exec("ALTER TABLE `customers` ADD COLUMN `loyalty_points` INT NOT NULL DEFAULT 0");
+            }
+
+            // Check if loyalty columns exist on sales table
+            if ($tableExists('sales') && !$columnExists('sales', 'points_earned')) {
+                $pdo->exec("ALTER TABLE `sales` ADD COLUMN `points_earned` INT NOT NULL DEFAULT 0");
+            }
+            if ($tableExists('sales') && !$columnExists('sales', 'points_redeemed')) {
+                $pdo->exec("ALTER TABLE `sales` ADD COLUMN `points_redeemed` INT NOT NULL DEFAULT 0");
+            }
+            if ($tableExists('sales') && !$columnExists('sales', 'points_redeemed_value')) {
+                $pdo->exec("ALTER TABLE `sales` ADD COLUMN `points_redeemed_value` DECIMAL(10,2) NOT NULL DEFAULT 0.00");
             }
 
             // Create due_payments table if not exists
