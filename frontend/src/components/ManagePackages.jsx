@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import API_BASE_URL from '../config';
+import SubscriptionInvoice from './SubscriptionInvoice';
 
 export default function ManagePackages() {
   const [packages, setPackages] = useState([]);
@@ -79,6 +80,8 @@ export default function ManagePackages() {
   const [confirmedShops, setConfirmedShops] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
+  const [showInvoice, setShowInvoice] = useState(false);
+  const [invoiceData, setInvoiceData] = useState(null);
 
   const fetchRequests = async () => {
     setRequestsLoading(true);
@@ -611,12 +614,34 @@ export default function ManagePackages() {
                             <span className="text-xs text-slate-450 italic">No receipt uploaded</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4 text-right flex justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setInvoiceData({
+                                id: shop.id,
+                                name: shop.name,
+                                email: shop.email,
+                                phone: shop.phone,
+                                address: shop.address,
+                                package_name: shop.package_name,
+                                price: shop.price,
+                                duration_days: shop.duration_days,
+                                payment_method: shop.payment_method,
+                                transaction_id: shop.transaction_id,
+                                status: 'pending',
+                                created_at: shop.created_at
+                              });
+                              setShowInvoice(true);
+                            }}
+                            className="bg-indigo-55 bg-indigo-50 hover:bg-indigo-100 text-indigo-750 text-indigo-700 font-bold py-2 px-3.5 rounded-xl text-xs transition-all border border-indigo-100/50"
+                          >
+                            View Invoice
+                          </button>
                           <button
                             onClick={() => approveSubscription(shop)}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-xs shadow-md shadow-emerald-600/10 active:translate-y-0.5 transition-all"
                           >
-                            Approve Subscription
+                            Approve
                           </button>
                         </td>
                       </tr>
@@ -656,6 +681,7 @@ export default function ManagePackages() {
                       <th className="px-6 py-4">Manual Payment Info</th>
                       <th className="px-6 py-4">Uploaded Proof Receipt</th>
                       <th className="px-6 py-4 text-center">Status</th>
+                      <th className="px-6 py-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
@@ -710,6 +736,30 @@ export default function ManagePackages() {
                             <span className={`w-1.5 h-1.5 rounded-full ${shop.status === 'active' ? 'bg-emerald-500' : 'bg-rose-400'}`} />
                             {shop.status === 'active' ? 'Active' : 'Suspended'}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            onClick={() => {
+                              setInvoiceData({
+                                id: shop.id,
+                                name: shop.name,
+                                email: shop.email,
+                                phone: shop.phone,
+                                address: shop.address,
+                                package_name: shop.package_name,
+                                price: shop.price,
+                                duration_days: shop.duration_days,
+                                payment_method: shop.payment_method,
+                                transaction_id: shop.transaction_id,
+                                status: 'approved',
+                                created_at: shop.created_at
+                              });
+                              setShowInvoice(true);
+                            }}
+                            className="bg-indigo-55 bg-indigo-50 hover:bg-indigo-100 text-indigo-750 text-indigo-700 font-bold py-2 px-3.5 rounded-xl text-xs transition-all border border-indigo-100/50"
+                          >
+                            View Invoice
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -904,7 +954,7 @@ export default function ManagePackages() {
                   onChange={handleInputChange}
                   rows="3"
                   placeholder="Included Features"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-slate-400"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-805 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-slate-400"
                 />
               </div>
 
@@ -940,6 +990,12 @@ export default function ManagePackages() {
           </div>
         </div>
       )}
+
+      <SubscriptionInvoice
+        isOpen={showInvoice}
+        onClose={() => setShowInvoice(false)}
+        invoice={invoiceData}
+      />
     </div>
   );
 }

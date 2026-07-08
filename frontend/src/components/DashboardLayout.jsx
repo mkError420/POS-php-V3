@@ -11,7 +11,9 @@ export default function DashboardLayout({
   onLogout = () => console.log('Logged out'),
   heldBillsCount = 0,
   pendingSubscriptionsCount = 0,
-  pendingSubscriptions = []
+  pendingSubscriptions = [],
+  expiringSubscriptionsCount = 0,
+  expiringSubscriptions = []
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -191,7 +193,7 @@ export default function DashboardLayout({
 
             {/* Super Admin Notifications Bell */}
             {user.role === 'super_admin' && (() => {
-              const totalAlerts = pendingSubscriptionsCount;
+              const totalAlerts = pendingSubscriptionsCount + expiringSubscriptionsCount;
               return (
                 <div className="relative">
                   <button
@@ -202,7 +204,7 @@ export default function DashboardLayout({
                     className={`relative p-2 text-slate-500 rounded-full hover:bg-slate-100 focus:outline-none ${
                       totalAlerts > 0 ? 'text-indigo-500 hover:text-indigo-650' : ''
                     }`}
-                    title="Subscription Registration Alerts"
+                    title="Subscription Alerts"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -221,39 +223,68 @@ export default function DashboardLayout({
                   {showNotifications && (
                     <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
                       <div className="px-4 py-3 font-semibold text-slate-700 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                        <span>New Subscriptions</span>
+                        <span>Subscription Alerts</span>
                         <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-bold">
-                          {totalAlerts} Pending
+                          {totalAlerts} Warnings
                         </span>
                       </div>
                       <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
                         {totalAlerts === 0 ? (
                           <div className="p-4 text-center text-slate-400 text-sm">
-                            No pending subscription requests!
+                            No subscription alerts!
                           </div>
                         ) : (
-                          pendingSubscriptions.map((shop) => (
-                            <div key={shop.id} className="p-4 hover:bg-slate-50 transition-colors cursor-pointer text-left"
-                                 onClick={() => {
-                                   if (onNavigate) onNavigate('/packages');
-                                   setShowNotifications(false);
-                                 }}>
-                              <div className="flex justify-between items-start">
-                                <h4 className="text-sm font-bold text-slate-800 truncate pr-2">
-                                  {shop.name}
-                                </h4>
-                                <span className="text-[9px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded shrink-0 uppercase border border-amber-100">
-                                  Pending
+                          <>
+                            {/* Pending Signups */}
+                            {pendingSubscriptions.map((shop) => (
+                              <div key={`pending-${shop.id}`} className="p-4 hover:bg-slate-50 transition-colors cursor-pointer text-left"
+                                   onClick={() => {
+                                     if (onNavigate) onNavigate('/packages');
+                                     setShowNotifications(false);
+                                   }}>
+                                <div className="flex justify-between items-start">
+                                  <h4 className="text-sm font-bold text-slate-800 truncate pr-2">
+                                    {shop.name}
+                                  </h4>
+                                  <span className="text-[9px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded shrink-0 uppercase border border-amber-100">
+                                    Pending
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1">
+                                  Applied for <span className="font-semibold text-slate-700">{shop.package_name || 'Plan'}</span> via {shop.payment_method?.toUpperCase()}
+                                </p>
+                                <span className="text-[10px] text-slate-400 font-mono block mt-1">
+                                  Ref: {shop.transaction_id || 'N/A'}
                                 </span>
                               </div>
-                              <p className="text-xs text-slate-500 mt-1">
-                                Applied for <span className="font-semibold text-slate-700">{shop.package_name || 'Plan'}</span> via {shop.payment_method?.toUpperCase()}
-                              </p>
-                              <span className="text-[10px] text-slate-400 font-mono block mt-1">
-                                Ref: {shop.transaction_id || 'N/A'}
-                              </span>
-                            </div>
-                          ))
+                            ))}
+
+                            {/* Expiring Soon */}
+                            {expiringSubscriptions.map((shop) => {
+                              const expiryDate = new Date(shop.subscription_expires_at);
+                              const diffTime = Math.abs(expiryDate - new Date());
+                              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                              return (
+                                <div key={`expiring-${shop.id}`} className="p-4 hover:bg-slate-50 transition-colors cursor-pointer text-left"
+                                     onClick={() => {
+                                       if (onNavigate) onNavigate('/shops');
+                                       setShowNotifications(false);
+                                     }}>
+                                  <div className="flex justify-between items-start">
+                                    <h4 className="text-sm font-bold text-slate-800 truncate pr-2">
+                                      {shop.name}
+                                    </h4>
+                                    <span className="text-[9px] text-rose-600 font-bold bg-rose-50 px-1.5 py-0.5 rounded shrink-0 uppercase border border-rose-100 animate-pulse">
+                                      7 Days Left
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-500 mt-1">
+                                    Active subscription <span className="font-semibold text-slate-700">{shop.package_name}</span> expires in {diffDays} days ({expiryDate.toLocaleDateString()}).
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </>
                         )}
                       </div>
                       <div className="p-2 bg-slate-50 border-t border-slate-200 text-center">
@@ -264,7 +295,7 @@ export default function DashboardLayout({
                           }}
                           className="w-full text-xs font-semibold text-indigo-650 hover:text-indigo-850 py-1"
                         >
-                          Manage Pending Orders
+                          Manage Subscriptions
                         </button>
                       </div>
                     </div>

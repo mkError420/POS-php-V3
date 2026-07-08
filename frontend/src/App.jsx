@@ -66,6 +66,8 @@ export default function App() {
   const [resumedHeldBill, setResumedHeldBill] = useState(null);
   const [pendingSubscriptionsCount, setPendingSubscriptionsCount] = useState(0);
   const [pendingSubscriptions, setPendingSubscriptions] = useState([]);
+  const [expiringSubscriptionsCount, setExpiringSubscriptionsCount] = useState(0);
+  const [expiringSubscriptions, setExpiringSubscriptions] = useState([]);
 
   // On mount: verify existing token against the backend
   useEffect(() => {
@@ -213,6 +215,21 @@ export default function App() {
             const pending = data.filter(s => s.subscription_status === 'pending');
             setPendingSubscriptionsCount(pending.length);
             setPendingSubscriptions(pending);
+
+            // Calculate active shops expiring within 7 days
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const sevenDays = new Date();
+            sevenDays.setDate(today.getDate() + 7);
+            sevenDays.setHours(23, 59, 59, 999);
+
+            const expiring = data.filter(s => {
+              if (!s.subscription_expires_at || s.status !== 'active') return false;
+              const exp = new Date(s.subscription_expires_at);
+              return exp >= today && exp <= sevenDays;
+            });
+            setExpiringSubscriptionsCount(expiring.length);
+            setExpiringSubscriptions(expiring);
           }
         }
       } catch (e) {
@@ -356,6 +373,8 @@ export default function App() {
       heldBillsCount={heldBillsCount}
       pendingSubscriptionsCount={pendingSubscriptionsCount}
       pendingSubscriptions={pendingSubscriptions}
+      expiringSubscriptionsCount={expiringSubscriptionsCount}
+      expiringSubscriptions={expiringSubscriptions}
       currentPath={currentPath}
       onNavigate={(path) => navigate(path)}
       onLogout={handleLogout}

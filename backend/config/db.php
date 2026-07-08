@@ -37,6 +37,12 @@ class DB {
                 self::$pdo = new PDO($dsn, $user, $pass, $options);
                 self::$pdo->exec("SET time_zone = '+06:00'");
                 self::runMigrations();
+                
+                // Auto-suspend expired subscriptions
+                self::$pdo->exec("UPDATE shops SET status = 'inactive', subscription_status = 'expired' 
+                                 WHERE subscription_expires_at IS NOT NULL 
+                                 AND subscription_expires_at < NOW() 
+                                 AND status = 'active'");
             } catch (\PDOException $e) {
                 // If the target database doesn't exist yet, create it automatically
                 if ($e->getCode() == 1049) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import API_BASE_URL from '../config';
 import logo from '../assets/logo.png';
+import SubscriptionInvoice from './SubscriptionInvoice';
 
 export default function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
@@ -39,6 +40,8 @@ export default function Login({ onLoginSuccess }) {
   });
 
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [showInvoice, setShowInvoice] = useState(false);
+  const [invoiceData, setInvoiceData] = useState(null);
 
   // Fetch active packages and manual payment instructions on mount
   useEffect(() => {
@@ -153,11 +156,21 @@ export default function Login({ onLoginSuccess }) {
         setSuccess(data.message || 'Subscription request submitted successfully. Awaiting approval.');
         setProcessingPayment(false);
 
-        // Reset and redirect back to login state
-        setTimeout(() => {
-          setMode('signin');
-          setSuccess('');
-        }, 5000);
+        // Open subscription invoice slip for client
+        setInvoiceData({
+          id: data.shop_id || 'PENDING',
+          name: signupForm.shop_name,
+          email: signupForm.shop_email,
+          phone: signupForm.shop_phone,
+          address: signupForm.shop_address,
+          package_name: selectedPkg.name,
+          price: selectedPkg.price,
+          duration_days: selectedPkg.duration_days,
+          payment_method: signupForm.payment_method,
+          transaction_id: signupForm.transaction_id,
+          status: 'pending'
+        });
+        setShowInvoice(true);
 
       } catch (err) {
         setError('Cannot connect to server. Registration failed.');
@@ -700,6 +713,16 @@ export default function Login({ onLoginSuccess }) {
           developed by <a href="https://its-mk.netlify.app/" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-400 transition-colors">MK</a>
         </p>
       </div>
+
+      <SubscriptionInvoice
+        isOpen={showInvoice}
+        onClose={() => {
+          setShowInvoice(false);
+          setMode('signin');
+          setSuccess('');
+        }}
+        invoice={invoiceData}
+      />
     </div>
   );
 }
