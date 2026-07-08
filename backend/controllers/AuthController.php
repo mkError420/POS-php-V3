@@ -19,7 +19,7 @@ class AuthController {
         try {
             // Fetch user and shop status
             $stmt = DB::query(
-                'SELECT u.*, s.name as shop_name, s.status as shop_status 
+                'SELECT u.*, s.name as shop_name, s.status as shop_status, s.subscription_expires_at, s.subscription_status 
                  FROM users u 
                  LEFT JOIN shops s ON u.shop_id = s.id 
                  WHERE u.email = ?',
@@ -36,9 +36,20 @@ class AuthController {
                 Auth::jsonError('Your account is suspended.', 403);
             }
 
-            // Check shop status
-            if ($user['role'] !== 'super_admin' && $user['shop_id'] && $user['shop_status'] !== 'active') {
-                Auth::jsonError('This shop has been suspended. Please contact the system administrator.', 403);
+            // Check shop status and subscription
+            if ($user['role'] !== 'super_admin' && $user['shop_id']) {
+                if ($user['subscription_status'] === 'pending') {
+                    Auth::jsonError('Your subscription registration is pending verification. Please wait for administrator approval.', 403);
+                }
+                if ($user['shop_status'] !== 'active') {
+                    Auth::jsonError('This shop has been suspended. Please contact the system administrator.', 403);
+                }
+                if ($user['subscription_status'] === 'expired' || (!empty($user['subscription_expires_at']) && strtotime($user['subscription_expires_at']) < time())) {
+                    if ($user['subscription_status'] !== 'expired') {
+                        DB::query("UPDATE shops SET subscription_status = 'expired' WHERE id = ?", [$user['shop_id']]);
+                    }
+                    Auth::jsonError('Your subscription plan has expired. Please contact the system administrator to renew.', 403);
+                }
             }
 
             // Compare passwords using password_verify (compatible with Node's bcryptjs)
@@ -94,7 +105,7 @@ class AuthController {
 
         try {
             $stmt = DB::query(
-                'SELECT u.id, u.name, u.email, u.role, u.shop_id, u.allowed_sections, u.logo, s.name as shop_name, s.status as shop_status 
+                'SELECT u.id, u.name, u.email, u.role, u.shop_id, u.allowed_sections, u.logo, s.name as shop_name, s.status as shop_status, s.subscription_expires_at, s.subscription_status 
                  FROM users u 
                  LEFT JOIN shops s ON u.shop_id = s.id 
                  WHERE u.id = ? AND u.status = "active"',
@@ -106,8 +117,19 @@ class AuthController {
                 Auth::jsonError('User not found or account suspended.', 404);
             }
 
-            if ($user['role'] !== 'super_admin' && $user['shop_id'] && $user['shop_status'] !== 'active') {
-                Auth::jsonError('This shop has been suspended. Please contact the system administrator.', 403);
+            if ($user['role'] !== 'super_admin' && $user['shop_id']) {
+                if ($user['subscription_status'] === 'pending') {
+                    Auth::jsonError('Your subscription registration is pending verification. Please wait for administrator approval.', 403);
+                }
+                if ($user['shop_status'] !== 'active') {
+                    Auth::jsonError('This shop has been suspended. Please contact the system administrator.', 403);
+                }
+                if ($user['subscription_status'] === 'expired' || (!empty($user['subscription_expires_at']) && strtotime($user['subscription_expires_at']) < time())) {
+                    if ($user['subscription_status'] !== 'expired') {
+                        DB::query("UPDATE shops SET subscription_status = 'expired' WHERE id = ?", [$user['shop_id']]);
+                    }
+                    Auth::jsonError('Your subscription plan has expired. Please contact the system administrator to renew.', 403);
+                }
             }
 
             $allowed_sections = null;
@@ -295,6 +317,82 @@ class AuthController {
             DB::rollBack();
             error_log('Register shop error: ' . $e->getMessage());
             Auth::jsonError('Failed to create shop and administrator.', 500);
+        }
+    }
+
+    public static function publicSignup($requestData) {
+        $shopName = $requestData['shop_name'] ?? '';
+        $shopEmail = $requestData['shop_email'] ?? '';
+        $shopPhone = $requestData['shop_phone'] ?? '';
+        $shopAddress = $requestData['shop_address'] ?? '';
+        
+        $adminName = $requestData['admin_name'] ?? '';
+        $adminEmail = $requestData['admin_email'] ?? '';
+        $adminPassword = $requestData['admin_password'] ?? '';
+        
+        $packageId = $requestData['package_id'] ?? null;
+        $paymentMethod = $requestData['payment_method'] ?? '';
+        $transactionId = $requestData['transaction_id'] ?? '';
+        $paymentProof = $requestData['payment_proof'] ?? null; // base64 encoded file
+
+        if (empty($shopName) || empty($shopEmail) || empty($adminName) || empty($adminEmail) || empty($adminPassword) || empty($packageId) || empty($paymentMethod) || empty($transactionId) || empty($paymentProof)) {
+            Auth::jsonError('Please provide all required details, payment selection, transaction ID and document proof.', 400);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // 1. Fetch package info
+            $stmt = DB::query('SELECT * FROM subscription_packages WHERE id = ? AND status = "active"', [$packageId]);
+            $package = $stmt->fetch();
+            if (!$package) {
+                DB::rollBack();
+                Auth::jsonError('Selected subscription package is invalid or inactive.', 400);
+            }
+
+            // 2. Verify admin email uniqueness
+            $stmt = DB::query('SELECT id FROM users WHERE email = ?', [$adminEmail]);
+            if ($stmt->fetch()) {
+                DB::rollBack();
+                Auth::jsonError('Admin email already exists in the system.', 400);
+            }
+
+            // 3. Verify shop email uniqueness
+            $stmt = DB::query('SELECT id FROM shops WHERE email = ?', [$shopEmail]);
+            if ($stmt->fetch()) {
+                DB::rollBack();
+                Auth::jsonError('Shop email already registered.', 400);
+            }
+
+            // 4. Create the shop (status is inactive, subscription_status is pending)
+            DB::query(
+                'INSERT INTO shops (name, email, phone, address, status, subscription_package_id, subscription_status, payment_method, transaction_id, payment_proof) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [$shopName, $shopEmail, $shopPhone, $shopAddress, 'inactive', $packageId, 'pending', $paymentMethod, $transactionId, $paymentProof]
+            );
+            $newShopId = DB::lastInsertId();
+
+            // 5. Hash admin password
+            $passwordHash = password_hash($adminPassword, PASSWORD_BCRYPT);
+
+            // 6. Create shop admin user
+            DB::query(
+                'INSERT INTO users (shop_id, name, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?, ?)',
+                [$newShopId, $adminName, $adminEmail, $passwordHash, 'shop_admin', 'active']
+            );
+
+            DB::commit();
+
+            header('Content-Type: application/json');
+            http_response_code(201);
+            echo json_encode([
+                'message' => 'Subscription request submitted successfully. Please wait for administrator verification.',
+                'status' => 'pending'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            error_log('Public register shop error: ' . $e->getMessage());
+            Auth::jsonError('Failed to complete subscription registration.', 500);
         }
     }
 }

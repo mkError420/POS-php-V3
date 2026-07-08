@@ -62,6 +62,7 @@ require_once __DIR__ . '/controllers/HeldBillController.php';
 require_once __DIR__ . '/controllers/ManualOrderController.php';
 require_once __DIR__ . '/controllers/OtherController.php';
 require_once __DIR__ . '/controllers/OtherSalesController.php';
+require_once __DIR__ . '/controllers/SubscriptionController.php';
 
 // Parse Request URI and Method
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -267,6 +268,12 @@ $routes = [
         // Users
         '/^users$/' => function() { OtherController::listUsers(); },
         '/^users\/staff$/' => function() { OtherController::listStaff(); },
+        // Subscriptions & Packages
+        '/^packages$/' => function() { SubscriptionController::listPublicPackages(); },
+        '/^superadmin\/packages$/' => function() { SubscriptionController::listAllPackages(); },
+        '/^payment-methods$/' => function() { SubscriptionController::getPublicPaymentMethods(); },
+        '/^superadmin\/settings$/' => function() { SubscriptionController::getSettings(); },
+        '/^superadmin\/backup\/shop\/(\d+)$/' => function($args) { SubscriptionController::downloadShopBackup($args[0]); },
     ],
     'POST' => [
         // Auth
@@ -305,6 +312,9 @@ $routes = [
         // Users
         '/^users$/' => function($args, $data) { OtherController::createUser($data); },
         '/^users\/staff$/' => function($args, $data) { OtherController::createStaff($data); },
+        // Subscriptions & Packages
+        '/^auth\/public-signup$/' => function($args, $data) { AuthController::publicSignup($data); },
+        '/^superadmin\/packages$/' => function($args, $data) { SubscriptionController::createPackage($data); },
     ],
     'PUT' => [
         // Auth
@@ -338,6 +348,9 @@ $routes = [
         // Users
         '/^users\/(\d+)$/' => function($args, $data) { OtherController::updateUser($args[0], $data); },
         '/^users\/staff\/(\d+)$/' => function($args, $data) { OtherController::updateStaff($args[0], $data); },
+        // Subscriptions & Packages
+        '/^superadmin\/packages\/(\d+)$/' => function($args, $data) { SubscriptionController::updatePackage($args[0], $data); },
+        '/^superadmin\/settings$/' => function($args, $data) { SubscriptionController::updateSettings($data); },
     ],
     'DELETE' => [
         // Products
@@ -368,6 +381,8 @@ $routes = [
         // Users
         '/^users\/(\d+)$/' => function($args) { OtherController::deleteUser($args[0]); },
         '/^users\/staff\/(\d+)$/' => function($args) { OtherController::deleteStaff($args[0]); },
+        // Subscriptions & Packages
+        '/^superadmin\/packages\/(\d+)$/' => function($args) { SubscriptionController::deletePackage($args[0]); },
     ]
 ];
 

@@ -26,6 +26,26 @@ const RoleBadge = ({ role }) => {
   );
 };
 
+const SubscriptionStatusBadge = ({ status }) => {
+  const map = {
+    none: 'bg-slate-50 text-slate-500 border-slate-200',
+    pending: 'bg-amber-50 text-amber-700 border-amber-200',
+    approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    expired: 'bg-rose-50 text-rose-600 border-rose-200'
+  };
+  const label = {
+    none: 'No Plan',
+    pending: 'Pending Approval',
+    approved: 'Approved',
+    expired: 'Expired'
+  };
+  return (
+    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${map[status] || map.none}`}>
+      {label[status] || status}
+    </span>
+  );
+};
+
 const FormField = ({ label, required, children }) => (
   <div>
     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
@@ -84,6 +104,7 @@ function PasswordStrength({ password }) {
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function ManageShops() {
   const [shops, setShops] = useState([]);
+  const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [alert, setAlert] = useState(null);
@@ -116,7 +137,7 @@ export default function ManageShops() {
   const [addForm, setAddForm] = useState(emptyAdd);
   const [showAddAdminPw, setShowAddAdminPw] = useState(false);
   // Edit form
-  const [editForm, setEditForm] = useState({ name: '', email: '', phone: '', address: '' });
+  const [editForm, setEditForm] = useState({ name: '', email: '', phone: '', address: '', subscription_package_id: '', subscription_expires_at: '', subscription_status: 'none' });
   // Delete confirm text
   const [deleteConfirm, setDeleteConfirm] = useState('');
 
@@ -145,6 +166,29 @@ export default function ManageShops() {
 
   useEffect(() => { fetchShops(); }, [fetchShops]);
 
+  // Fetch subscription packages for management dropdown
+  useEffect(() => {
+    const fetchPackages = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/superadmin/packages`, {
+          headers: { Authorization: `Bearer ${token()}` }
+        });
+        if (res.ok) {
+          setPackages(await res.json());
+        }
+      } catch (err) {
+        console.error('Failed to load subscription packages:', err);
+      }
+    };
+    fetchPackages();
+  }, []);
+
+  const formatDateForInput = (dateStr) => {
+    if (!dateStr) return '';
+    const normalized = dateStr.replace(' ', 'T');
+    return normalized.slice(0, 16);
+  };
+
   // ── Fetch users for a specific shop ───────────────────────────────────────
   const fetchShopUsers = async (shopId) => {
     setUsersLoading(true);
@@ -161,8 +205,11 @@ export default function ManageShops() {
     }
   };
 
+  // Exclude pending subscription requests from Manage Tenant Shops until approved
+  const nonPendingShops = shops.filter(s => s.subscription_status !== 'pending');
+
   // ── Filtered shops ─────────────────────────────────────────────────────────
-  const filtered = shops.filter(s => {
+  const filtered = nonPendingShops.filter(s => {
     const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) ||
       s.email.toLowerCase().includes(search.toLowerCase());
     const matchStatus = filterStatus === 'all' || s.status === filterStatus;
@@ -170,10 +217,10 @@ export default function ManageShops() {
   });
 
   // ── Stats ──────────────────────────────────────────────────────────────────
-  const totalShops = shops.length;
-  const activeShops = shops.filter(s => s.status === 'active').length;
-  const suspendedShops = shops.filter(s => s.status === 'inactive').length;
-  const totalUsers = shops.reduce((sum, s) => sum + (s.user_count || 0), 0);
+  const totalShops = nonPendingShops.length;
+  const activeShops = nonPendingShops.filter(s => s.status === 'active').length;
+  const suspendedShops = nonPendingShops.filter(s => s.status === 'inactive').length;
+  const totalUsers = nonPendingShops.reduce((sum, s) => sum + (s.user_count || 0), 0);
 
   // ══ SHOP CRUD ══════════════════════════════════════════════════════════════
 
@@ -203,8 +250,45 @@ export default function ManageShops() {
 
   const openEdit = (shop) => {
     setSelectedShop(shop);
-    setEditForm({ name: shop.name, email: shop.email, phone: shop.phone || '', address: shop.address || '' });
+    setEditForm({ 
+      name: shop.name, 
+      email: shop.email, 
+      phone: shop.phone || '', 
+      address: shop.address || '',
+      subscription_package_id: shop.subscription_package_id || '',
+      subscription_expires_at: shop.subscription_expires_at ? formatDateForInput(shop.subscription_expires_at) : '',
+      subscription_status: shop.subscription_status || 'none'
+    });
     setShowEditModal(true);
+  };
+
+  const approveSubscription = async (shop) => {
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/shops/${shop.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({
+          name: shop.name,
+          email: shop.email,
+          phone: shop.phone || '',
+          address: shop.address || '',
+          status: 'active',
+          subscription_package_id: shop.subscription_package_id,
+          subscription_status: 'approved',
+          subscription_expires_at: null // Auto calculated by backend
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to approve subscription.');
+      triggerAlert('success', 'Subscription approved and shop store activated successfully!');
+      fetchShops();
+      setDetailShop(null);
+    } catch (err) {
+      triggerAlert('error', err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleEditSubmit = async (e) => {
@@ -410,6 +494,7 @@ export default function ManageShops() {
                   <th className="px-4 py-3">Shop Name</th>
                   <th className="px-4 py-3 hidden md:table-cell">Email</th>
                   <th className="px-4 py-3 hidden lg:table-cell">Phone</th>
+                  <th className="px-4 py-3 hidden lg:table-cell">Plan</th>
                   <th className="px-4 py-3 text-center">Users</th>
                   <th className="px-4 py-3 text-center">Status</th>
                   <th className="px-4 py-3 text-center">Actions</th>
@@ -417,14 +502,14 @@ export default function ManageShops() {
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
                 {loading ? (
-                  <tr><td colSpan="7" className="p-12 text-center">
+                  <tr><td colSpan="8" className="p-12 text-center">
                     <div className="flex flex-col items-center gap-3 text-slate-400">
                       <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600" />
                       <span className="text-sm">Loading shops…</span>
                     </div>
                   </td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan="7" className="p-12 text-center">
+                  <tr><td colSpan="8" className="p-12 text-center">
                     <div className="flex flex-col items-center gap-2 text-slate-400">
                       <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -442,6 +527,27 @@ export default function ManageShops() {
                         <td className="px-4 py-3.5 font-semibold text-slate-800">{shop.name}</td>
                         <td className="px-4 py-3.5 text-slate-500 font-mono text-xs hidden md:table-cell">{shop.email}</td>
                         <td className="px-4 py-3.5 text-slate-500 hidden lg:table-cell">{shop.phone || <span className="text-slate-300">—</span>}</td>
+                        <td className="px-4 py-3.5 hidden lg:table-cell">
+                          {shop.package_name ? (
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-semibold text-slate-800 text-xs bg-indigo-50 border border-indigo-100 rounded px-1.5 py-0.5 w-fit">
+                                  {shop.package_name}
+                                </span>
+                                <SubscriptionStatusBadge status={shop.subscription_status} />
+                              </div>
+                              {shop.subscription_expires_at && (
+                                <span className={`text-[10px] mt-0.5 ${
+                                  new Date(shop.subscription_expires_at) < new Date() ? 'text-rose-500 font-semibold' : 'text-slate-400'
+                                }`}>
+                                  Exp: {new Date(shop.subscription_expires_at).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-xs italic">No Active Plan</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3.5 text-center">
                           <button onClick={e => { e.stopPropagation(); openUsersModal(shop); }}
                             className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-semibold text-xs bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-lg transition-colors">
@@ -537,15 +643,52 @@ export default function ManageShops() {
                 { label: 'Phone', value: detailShop.phone || '—' },
                 { label: 'Address', value: detailShop.address || '—' },
                 { label: 'Total Users', value: `${detailShop.user_count} user(s)` },
+                { label: 'Subscription Plan', value: detailShop.package_name || 'No Active Plan' },
+                { label: 'Plan Expiry', value: detailShop.subscription_expires_at ? new Date(detailShop.subscription_expires_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—' },
+                { label: 'Subscription Status', value: <SubscriptionStatusBadge status={detailShop.subscription_status} /> },
+                { label: 'Payment Method', value: detailShop.payment_method ? detailShop.payment_method.toUpperCase() : '—' },
+                { label: 'Transaction ID', value: detailShop.transaction_id || '—' },
                 { label: 'Registered', value: new Date(detailShop.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) },
               ].map(({ label, value }) => (
                 <div key={label} className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</span>
-                  <span className="text-slate-700 font-medium break-all">{value}</span>
+                  <div className="text-slate-700 font-medium break-all">{value}</div>
                 </div>
               ))}
             </div>
+
+            {detailShop.payment_proof && (
+              <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Payment Proof Document</span>
+                <div className="border border-slate-200 rounded-xl p-2 bg-slate-50 relative group overflow-hidden max-h-48 flex items-center justify-center">
+                  <img 
+                    src={detailShop.payment_proof} 
+                    alt="Payment Proof Receipt" 
+                    className="max-w-full max-h-40 object-contain rounded-lg shadow-xs"
+                  />
+                  <a 
+                    href={detailShop.payment_proof} 
+                    download={`payment_proof_shop_${detailShop.id}.png`}
+                    className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1.5 rounded-xl cursor-pointer"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download Proof
+                  </a>
+                </div>
+              </div>
+            )}
             <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+              {detailShop.subscription_status === 'pending' && (
+                <button onClick={() => approveSubscription(detailShop)}
+                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-all shadow-md shadow-emerald-600/20 active:translate-y-0.5">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Approve Subscription
+                </button>
+              )}
               <button onClick={() => openUsersModal(detailShop)}
                 className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold py-2 rounded-xl transition-colors">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -696,6 +839,40 @@ export default function ManageShops() {
                 <FormField label="Address">
                   <input className={inputCls} type="text" value={editForm.address} onChange={e => setEditForm({ ...editForm, address: e.target.value })} />
                 </FormField>
+                <div className="grid grid-cols-3 gap-3">
+                  <FormField label="Subscription Plan">
+                    <select
+                      className={inputCls}
+                      value={editForm.subscription_package_id}
+                      onChange={e => setEditForm({ ...editForm, subscription_package_id: e.target.value })}
+                    >
+                      <option value="">No Active Plan</option>
+                      {packages.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </FormField>
+                  <FormField label="Subscription Status">
+                    <select
+                      className={inputCls}
+                      value={editForm.subscription_status}
+                      onChange={e => setEditForm({ ...editForm, subscription_status: e.target.value })}
+                    >
+                      <option value="none">No Plan</option>
+                      <option value="pending">Pending Approval</option>
+                      <option value="approved">Approved</option>
+                      <option value="expired">Expired</option>
+                    </select>
+                  </FormField>
+                  <FormField label="Plan Expiry">
+                    <input
+                      className={inputCls}
+                      type="datetime-local"
+                      value={editForm.subscription_expires_at}
+                      onChange={e => setEditForm({ ...editForm, subscription_expires_at: e.target.value })}
+                    />
+                  </FormField>
+                </div>
               </div>
               <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
                 <button type="button" onClick={() => setShowEditModal(false)} className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">Cancel</button>

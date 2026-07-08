@@ -262,6 +262,22 @@ export default function SystemUsers() {
     return matchSearch && matchRole && matchStatus && matchShop;
   });
 
+  // Group users by shop name
+  const groupedUsers = filteredUsers.reduce((groups, user) => {
+    const shopName = user.shop_name || 'Global System';
+    if (!groups[shopName]) {
+      groups[shopName] = [];
+    }
+    groups[shopName].push(user);
+    return groups;
+  }, {});
+
+  const sortedShopNames = Object.keys(groupedUsers).sort((a, b) => {
+    if (a === 'Global System') return -1;
+    if (b === 'Global System') return 1;
+    return a.localeCompare(b);
+  });
+
   return (
     <div className="space-y-6">
       <Toast alert={alert} onDismiss={() => setAlert(null)} />
@@ -335,74 +351,77 @@ export default function SystemUsers() {
         </div>
       </div>
 
-      {/* Users Table */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
-                <th className="p-4">Name</th>
-                <th className="p-4">Email</th>
-                <th className="p-4">Role</th>
-                <th className="p-4">Associated Shop</th>
-                <th className="p-4">Status</th>
-                <th className="p-4">Created Date</th>
-                <th className="p-4 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
-              {loading ? (
-                <tr>
-                  <td colSpan="7" className="p-12 text-center">
-                    <div className="flex justify-center items-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="p-12 text-center text-slate-400">
-                    No users found matching your filters.
-                  </td>
-                </tr>
-              ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="p-4 font-semibold text-slate-800">{user.name}</td>
-                    <td className="p-4 text-slate-600 font-mono text-xs">{user.email}</td>
-                    <td className="p-4"><RoleBadge role={user.role} /></td>
-                    <td className="p-4 text-slate-700">
-                      {user.shop_name ? (
-                        <span className="font-medium text-slate-800">{user.shop_name}</span>
-                      ) : (
-                        <span className="text-slate-400 italic font-mono text-xs">Global System</span>
-                      )}
-                    </td>
-                    <td className="p-4"><StatusBadge status={user.status} /></td>
-                    <td className="p-4 text-slate-500 font-medium">
-                      {new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                    </td>
-                    <td className="p-4 text-center space-x-2">
-                      <button
-                        onClick={() => openEditModal(user)}
-                        className="text-indigo-600 hover:text-indigo-900 font-semibold text-xs border border-indigo-100 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-colors"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user.id, user.name)}
-                        className="text-rose-600 hover:text-rose-900 font-semibold text-xs border border-rose-100 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg transition-colors"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {/* Users Table Grouped by Shop */}
+      {loading ? (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs p-12 flex justify-center items-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
         </div>
-      </div>
+      ) : filteredUsers.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs p-12 text-center text-slate-450">
+          No users found matching your filters.
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {sortedShopNames.map(shopName => {
+            const shopUsers = groupedUsers[shopName];
+            return (
+              <div key={shopName} className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+                <div className="bg-slate-50 border-b border-slate-100 px-5 py-3.5 flex items-center justify-between">
+                  <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-600 shrink-0" />
+                    {shopName === 'Global System' ? 'Global System (Super Admins)' : shopName}
+                    <span className="text-[10px] font-bold text-slate-450 bg-slate-200/60 rounded px-1.5 py-0.5">
+                      {shopUsers.length} user(s)
+                    </span>
+                  </h3>
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-xs font-bold text-slate-450 uppercase tracking-wider bg-slate-50/50">
+                        <th className="p-4">Name</th>
+                        <th className="p-4">Email</th>
+                        <th className="p-4">Role</th>
+                        <th className="p-4">Status</th>
+                        <th className="p-4">Created Date</th>
+                        <th className="p-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-sm">
+                      {shopUsers.map((user) => (
+                        <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4 font-semibold text-slate-800">{user.name}</td>
+                          <td className="p-4 text-slate-600 font-mono text-xs">{user.email}</td>
+                          <td className="p-4"><RoleBadge role={user.role} /></td>
+                          <td className="p-4"><StatusBadge status={user.status} /></td>
+                          <td className="p-4 text-slate-500 font-medium">
+                            {new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </td>
+                          <td className="p-4 text-right space-x-2">
+                            <button
+                              onClick={() => openEditModal(user)}
+                              className="text-indigo-600 hover:text-indigo-900 font-semibold text-xs border border-indigo-100 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(user.id, user.name)}
+                              className="text-rose-600 hover:text-rose-900 font-semibold text-xs border border-rose-100 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════
           MODAL: Register New User

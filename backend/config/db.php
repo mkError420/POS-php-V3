@@ -400,6 +400,84 @@ class DB {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             ");
 
+            // Create subscription_packages table
+            if (!$tableExists('subscription_packages')) {
+                $pdo->exec("
+                    CREATE TABLE `subscription_packages` (
+                        `id` INT AUTO_INCREMENT PRIMARY KEY,
+                        `name` VARCHAR(100) NOT NULL,
+                        `price` DECIMAL(10,2) NOT NULL,
+                        `duration_days` INT NOT NULL DEFAULT 30,
+                        `features` TEXT NULL,
+                        `status` ENUM('active', 'inactive') DEFAULT 'active',
+                        `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                ");
+                
+                // Seed default packages
+                $pdo->exec("
+                    INSERT INTO `subscription_packages` (`name`, `price`, `duration_days`, `features`, `status`) VALUES
+                    ('Starter Plan', 19.00, 30, 'Max 100 Products, 2 Staff Members, Basic Analytics', 'active'),
+                    ('Professional Plan', 49.00, 30, 'Unlimited Products, 5 Staff Members, Advanced Analytics, Held Bills Support', 'active'),
+                    ('Enterprise Plan', 99.00, 365, 'Unlimited Products, Unlimited Staff, Full Suite Analytics, Dedicated Support', 'active')
+                ");
+            }
+
+            // Check if subscription_package_id exists in shops
+            if ($tableExists('shops') && !$columnExists('shops', 'subscription_package_id')) {
+                $pdo->exec("ALTER TABLE `shops` ADD COLUMN `subscription_package_id` INT NULL");
+                $pdo->exec("ALTER TABLE `shops` ADD CONSTRAINT `fk_shops_package` FOREIGN KEY (`subscription_package_id`) REFERENCES `subscription_packages` (`id`) ON DELETE SET NULL ON UPDATE CASCADE");
+            }
+
+            // Check if subscription_expires_at exists in shops
+            if ($tableExists('shops') && !$columnExists('shops', 'subscription_expires_at')) {
+                $pdo->exec("ALTER TABLE `shops` ADD COLUMN `subscription_expires_at` TIMESTAMP NULL");
+            }
+
+            // Create system_settings table
+            if (!$tableExists('system_settings')) {
+                $pdo->exec("
+                    CREATE TABLE `system_settings` (
+                        `id` INT AUTO_INCREMENT PRIMARY KEY,
+                        `setting_key` VARCHAR(100) UNIQUE NOT NULL,
+                        `setting_value` TEXT NULL
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                ");
+                
+                // Seed default payment methods setting
+                $defaultPaymentInfo = json_encode([
+                    'bkash' => '01700000000',
+                    'nagad' => '01800000000',
+                    'bank_name' => 'Demo Bank PLC',
+                    'bank_account_name' => 'Codexaa POS Solutions',
+                    'bank_account_no' => '123456789012',
+                    'bank_routing' => '120345678'
+                ]);
+                $stmt = $pdo->prepare("INSERT INTO `system_settings` (`setting_key`, `setting_value`) VALUES ('payment_methods', ?)");
+                $stmt->execute([$defaultPaymentInfo]);
+            }
+
+            // Check if payment_method column exists in shops
+            if ($tableExists('shops') && !$columnExists('shops', 'payment_method')) {
+                $pdo->exec("ALTER TABLE `shops` ADD COLUMN `payment_method` VARCHAR(50) NULL");
+            }
+
+            // Check if transaction_id column exists in shops
+            if ($tableExists('shops') && !$columnExists('shops', 'transaction_id')) {
+                $pdo->exec("ALTER TABLE `shops` ADD COLUMN `transaction_id` VARCHAR(100) NULL");
+            }
+
+            // Check if payment_proof column exists in shops
+            if ($tableExists('shops') && !$columnExists('shops', 'payment_proof')) {
+                $pdo->exec("ALTER TABLE `shops` ADD COLUMN `payment_proof` LONGTEXT NULL");
+            }
+
+            // Check if subscription_status column exists in shops
+            if ($tableExists('shops') && !$columnExists('shops', 'subscription_status')) {
+                $pdo->exec("ALTER TABLE `shops` ADD COLUMN `subscription_status` ENUM('none', 'pending', 'approved', 'expired') DEFAULT 'none'");
+            }
+
             // Seed Super Admin if no super_admin exists yet
             $stmt = $pdo->query("SELECT COUNT(*) FROM `users` WHERE `role` = 'super_admin'");
             if ($stmt->fetchColumn() == 0) {

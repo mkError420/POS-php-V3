@@ -638,12 +638,20 @@ class OtherController {
         Auth::authorize(['super_admin']);
 
         try {
-            $stmt = DB::query('SELECT id, name, email, phone, address, tax_rate, status, logo, created_at FROM shops ORDER BY name ASC');
+            $stmt = DB::query('
+                SELECT s.id, s.name, s.email, s.phone, s.address, s.tax_rate, s.status, s.logo, s.created_at, 
+                       s.subscription_package_id, s.subscription_expires_at, s.subscription_status,
+                       s.payment_method, s.transaction_id, s.payment_proof, p.name AS package_name 
+                FROM shops s 
+                LEFT JOIN subscription_packages p ON s.subscription_package_id = p.id 
+                ORDER BY s.name ASC
+            ');
             $shops = $stmt->fetchAll();
 
             foreach ($shops as &$sh) {
                 $sh['id'] = (int)$sh['id'];
                 $sh['tax_rate'] = (float)$sh['tax_rate'];
+                $sh['subscription_package_id'] = $sh['subscription_package_id'] !== null ? (int)$sh['subscription_package_id'] : null;
             }
 
             header('Content-Type: application/json');
@@ -789,14 +797,19 @@ class OtherController {
         $address = $requestData['address'] ?? null;
         $taxRate = isset($requestData['tax_rate']) ? (float)$requestData['tax_rate'] : 10.00;
         $status = $requestData['status'] ?? 'active';
+        
+        $subscriptionPackageId = isset($requestData['subscription_package_id']) && $requestData['subscription_package_id'] !== '' ? (int)$requestData['subscription_package_id'] : null;
+        $subscriptionExpiresAt = isset($requestData['subscription_expires_at']) && $requestData['subscription_expires_at'] !== '' ? $requestData['subscription_expires_at'] : null;
+        $subscriptionStatus = $requestData['subscription_status'] ?? null;
 
         if (empty($name) || empty($email)) {
             Auth::jsonError('Shop name and email are required.', 400);
         }
 
         try {
-            $stmt = DB::query('SELECT id FROM shops WHERE id = ?', [$shopId]);
-            if (!$stmt->fetch()) {
+            $stmt = DB::query('SELECT id, status, subscription_status FROM shops WHERE id = ?', [$shopId]);
+            $existingShop = $stmt->fetch();
+            if (!$existingShop) {
                 Auth::jsonError('Shop not found.', 404);
             }
 
@@ -805,9 +818,28 @@ class OtherController {
                 Auth::jsonError('Email already in use by another shop.', 400);
             }
 
+            // Auto calculate subscription expiry date if approved and not yet set
+            if ($subscriptionStatus === 'approved' && empty($subscriptionExpiresAt) && !empty($subscriptionPackageId)) {
+                $pStmt = DB::query("SELECT duration_days FROM subscription_packages WHERE id = ?", [$subscriptionPackageId]);
+                $pkg = $pStmt->fetch();
+                if ($pkg) {
+                    $subscriptionExpiresAt = date('Y-m-d H:i:s', time() + (int)$pkg['duration_days'] * 86400);
+                }
+            }
+
+            // Auto activate shop status if subscription is approved
+            if ($subscriptionStatus === 'approved') {
+                $status = 'active';
+            }
+
+            // If subscription_status is explicitly updated to 'expired' or 'none', suspend shop status
+            if (in_array($subscriptionStatus, ['expired', 'none'])) {
+                $status = 'inactive';
+            }
+
             DB::query(
-                'UPDATE shops SET name = ?, email = ?, phone = ?, address = ?, tax_rate = ?, status = ? WHERE id = ?',
-                [$name, $email, $phone, $address, $taxRate, $status, $shopId]
+                'UPDATE shops SET name = ?, email = ?, phone = ?, address = ?, tax_rate = ?, status = ?, subscription_package_id = ?, subscription_expires_at = ?, subscription_status = ? WHERE id = ?',
+                [$name, $email, $phone, $address, $taxRate, $status, $subscriptionPackageId, $subscriptionExpiresAt, $subscriptionStatus, $shopId]
             );
 
             header('Content-Type: application/json');

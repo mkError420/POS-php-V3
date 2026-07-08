@@ -9,7 +9,9 @@ export default function DashboardLayout({
   currentPath = '/dashboard',
   onNavigate,
   onLogout = () => console.log('Logged out'),
-  heldBillsCount = 0
+  heldBillsCount = 0,
+  pendingSubscriptionsCount = 0,
+  pendingSubscriptions = []
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -179,6 +181,90 @@ export default function DashboardLayout({
                           className="w-full text-xs font-semibold text-indigo-600 hover:text-indigo-800 py-1"
                         >
                           View Low Stock & Expiring Inventory
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Super Admin Notifications Bell */}
+            {user.role === 'super_admin' && (() => {
+              const totalAlerts = pendingSubscriptionsCount;
+              return (
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setShowNotifications(!showNotifications);
+                      setShowProfileDropdown(false);
+                    }}
+                    className={`relative p-2 text-slate-500 rounded-full hover:bg-slate-100 focus:outline-none ${
+                      totalAlerts > 0 ? 'text-indigo-500 hover:text-indigo-650' : ''
+                    }`}
+                    title="Subscription Registration Alerts"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    {totalAlerts > 0 && (
+                      <span className="absolute top-1.5 right-1.5 flex h-3.5 w-3.5 animate-pulse">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-indigo-500 text-[10px] font-bold text-white items-center justify-center">
+                          {totalAlerts}
+                        </span>
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Notifications Dropdown Drawer */}
+                  {showNotifications && (
+                    <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
+                      <div className="px-4 py-3 font-semibold text-slate-700 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                        <span>New Subscriptions</span>
+                        <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-bold">
+                          {totalAlerts} Pending
+                        </span>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
+                        {totalAlerts === 0 ? (
+                          <div className="p-4 text-center text-slate-400 text-sm">
+                            No pending subscription requests!
+                          </div>
+                        ) : (
+                          pendingSubscriptions.map((shop) => (
+                            <div key={shop.id} className="p-4 hover:bg-slate-50 transition-colors cursor-pointer text-left"
+                                 onClick={() => {
+                                   if (onNavigate) onNavigate('/packages');
+                                   setShowNotifications(false);
+                                 }}>
+                              <div className="flex justify-between items-start">
+                                <h4 className="text-sm font-bold text-slate-800 truncate pr-2">
+                                  {shop.name}
+                                </h4>
+                                <span className="text-[9px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded shrink-0 uppercase border border-amber-100">
+                                  Pending
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-500 mt-1">
+                                Applied for <span className="font-semibold text-slate-700">{shop.package_name || 'Plan'}</span> via {shop.payment_method?.toUpperCase()}
+                              </p>
+                              <span className="text-[10px] text-slate-400 font-mono block mt-1">
+                                Ref: {shop.transaction_id || 'N/A'}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div className="p-2 bg-slate-50 border-t border-slate-200 text-center">
+                        <button
+                          onClick={() => {
+                            if (onNavigate) onNavigate('/packages');
+                            setShowNotifications(false);
+                          }}
+                          className="w-full text-xs font-semibold text-indigo-650 hover:text-indigo-850 py-1"
+                        >
+                          Manage Pending Orders
                         </button>
                       </div>
                     </div>

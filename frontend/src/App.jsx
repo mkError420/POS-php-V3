@@ -11,6 +11,7 @@ import ManageStaff from './components/ManageStaff';
 import Settings from './components/Settings';
 import ManageShops from './components/ManageShops';
 import SystemUsers from './components/SystemUsers';
+import ManagePackages from './components/ManagePackages';
 import HeldBills from './components/HeldBills';
 import OtherCost from './components/OtherCost';
 import OtherSales from './components/OtherSales';
@@ -18,6 +19,7 @@ import TotalRevenue from './components/TotalRevenue';
 import Wastage from './components/Wastage';
 import Returns from './components/Returns';
 import ManualOrders from './components/ManualOrders';
+import ShopBackups from './components/ShopBackups';
 
 import API_BASE_URL from './config';
 
@@ -62,6 +64,8 @@ export default function App() {
   const [expiryAlerts, setExpiryAlerts] = useState([]);
   const [heldBillsCount, setHeldBillsCount] = useState(0);
   const [resumedHeldBill, setResumedHeldBill] = useState(null);
+  const [pendingSubscriptionsCount, setPendingSubscriptionsCount] = useState(0);
+  const [pendingSubscriptions, setPendingSubscriptions] = useState([]);
 
   // On mount: verify existing token against the backend
   useEffect(() => {
@@ -199,6 +203,17 @@ export default function App() {
             const heldData = await heldResponse.json();
             setHeldBillsCount(heldData.filter(bill => bill.status === 'held').length);
           }
+        } else {
+          // Fetch pending subscription requests for super admin notifications
+          const res = await fetch(`${API_BASE_URL}/shops`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const pending = data.filter(s => s.subscription_status === 'pending');
+            setPendingSubscriptionsCount(pending.length);
+            setPendingSubscriptions(pending);
+          }
         }
       } catch (e) {
         console.error('Session detail load failed:', e);
@@ -233,11 +248,13 @@ export default function App() {
         case '/dashboard': return <Dashboard onNavigate={(path) => navigate(path)} />;
         case '/shops': return <ManageShops />;
         case '/users': return <SystemUsers />;
+        case '/packages': return <ManagePackages />;
         case '/products': return <Inventory />;
         case '/wastage': return <Wastage />;
         case '/other-cost': return <OtherCost />;
         case '/other-sales': return <OtherSales />;
         case '/total-revenue': return <TotalRevenue />;
+        case '/backups': return <ShopBackups />;
         case '/settings': return <Settings />;
         default: return <Dashboard onNavigate={(path) => navigate(path)} />;
       }
@@ -337,6 +354,8 @@ export default function App() {
       lowStockItems={lowStockAlerts}
       expiryItems={expiryAlerts}
       heldBillsCount={heldBillsCount}
+      pendingSubscriptionsCount={pendingSubscriptionsCount}
+      pendingSubscriptions={pendingSubscriptions}
       currentPath={currentPath}
       onNavigate={(path) => navigate(path)}
       onLogout={handleLogout}
