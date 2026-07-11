@@ -484,6 +484,26 @@ class DB {
                 $pdo->exec("ALTER TABLE `shops` ADD COLUMN `subscription_status` ENUM('none', 'pending', 'approved', 'expired') DEFAULT 'none'");
             }
 
+            // Create chat_messages table if not exists
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS `chat_messages` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `session_id` VARCHAR(100) NOT NULL,
+                    `sender_type` ENUM('guest', 'super_admin') NOT NULL,
+                    `sender_name` VARCHAR(100) NULL,
+                    `message` TEXT NOT NULL,
+                    `is_read` TINYINT(1) NOT NULL DEFAULT 0,
+                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX `idx_chat_session` (`session_id`),
+                    INDEX `idx_chat_created` (`created_at`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+
+            // Check if deleted_by_admin exists on chat_messages table
+            if ($tableExists('chat_messages') && !$columnExists('chat_messages', 'deleted_by_admin')) {
+                $pdo->exec("ALTER TABLE `chat_messages` ADD COLUMN `deleted_by_admin` TINYINT(1) NOT NULL DEFAULT 0");
+            }
+
             // Seed Super Admin if no super_admin exists yet
             $stmt = $pdo->query("SELECT COUNT(*) FROM `users` WHERE `role` = 'super_admin'");
             if ($stmt->fetchColumn() == 0) {

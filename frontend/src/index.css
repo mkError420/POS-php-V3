@@ -142,5 +142,40 @@
   z-index: 5;
 }
 
+/* --- MARQUEE ANIMATION --- */
+@keyframes marquee {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
 
+.animate-marquee {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marquee 5s linear infinite;
+  will-change: transform;
+}
 
+/* --- DICH BACKGROUND ANIMATION STYLES --- */
+@font-face {
+  font-family: 'Drukwide';
+  src: url('https://img.blacklead.work/DrukWide-Heavy.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+}
+
+.footer_hover-effect canvas {
+  position: absolute;
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 767px) {
+  .footer_hover-effect canvas {
+    height: 100vh;
+    top: 0;
+  }
+}

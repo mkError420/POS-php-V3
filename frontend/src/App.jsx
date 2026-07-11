@@ -20,6 +20,7 @@ import Wastage from './components/Wastage';
 import Returns from './components/Returns';
 import ManualOrders from './components/ManualOrders';
 import ShopBackups from './components/ShopBackups';
+import LiveChat from './components/LiveChat';
 
 import API_BASE_URL from './config';
 
@@ -272,6 +273,7 @@ export default function App() {
         case '/other-sales': return <OtherSales />;
         case '/total-revenue': return <TotalRevenue />;
         case '/backups': return <ShopBackups />;
+        case '/live-chat': return <LiveChat />;
         case '/settings': return <Settings />;
         default: return <Dashboard onNavigate={(path) => navigate(path)} />;
       }

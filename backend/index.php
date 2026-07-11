@@ -63,6 +63,7 @@ require_once __DIR__ . '/controllers/ManualOrderController.php';
 require_once __DIR__ . '/controllers/OtherController.php';
 require_once __DIR__ . '/controllers/OtherSalesController.php';
 require_once __DIR__ . '/controllers/SubscriptionController.php';
+require_once __DIR__ . '/controllers/ChatController.php';
 
 // Parse Request URI and Method
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -223,6 +224,10 @@ $routes = [
         },
         // Auth
         '/^auth\/me$/' => function() { AuthController::getMe(); },
+        // Chat
+        '/^chat\/([a-zA-Z0-9_-]+)$/' => function($args) { ChatController::getSessionMessages($args[0]); },
+        '/^superadmin\/chats$/' => function() { ChatController::getActiveSessions(); },
+        '/^superadmin\/chats\/([a-zA-Z0-9_-]+)$/' => function($args) { ChatController::getSessionMessages($args[0]); },
         // Products
         '/^products$/' => function() { ProductController::listProducts(); },
         '/^products\/(\d+)\/stock-sales-history$/' => function($args) { ProductController::getProductStockSalesHistory($args[0]); },
@@ -279,6 +284,9 @@ $routes = [
         // Auth
         '/^auth\/login$/' => function($args, $data) { AuthController::login($data); },
         '/^auth\/register-shop$/' => function($args, $data) { AuthController::registerShop($data); },
+        // Chat
+        '/^chat\/([a-zA-Z0-9_-]+)$/' => function($args, $data) { ChatController::sendMessage($args[0], $data); },
+        '/^superadmin\/chats\/([a-zA-Z0-9_-]+)$/' => function($args, $data) { ChatController::sendMessage($args[0], $data); },
         // Products
         '/^products$/' => function($args, $data) { ProductController::createProduct($data); },
         '/^products\/bulk-upload$/' => function($args, $data) { ProductController::bulkUploadProducts(); },
@@ -383,6 +391,8 @@ $routes = [
         '/^users\/staff\/(\d+)$/' => function($args) { OtherController::deleteStaff($args[0]); },
         // Subscriptions & Packages
         '/^superadmin\/packages\/(\d+)$/' => function($args) { SubscriptionController::deletePackage($args[0]); },
+        // Chats
+        '/^superadmin\/chats\/([a-zA-Z0-9_-]+)$/' => function($args, $data) { ChatController::deleteSession($args[0], $data); },
     ]
 ];
 

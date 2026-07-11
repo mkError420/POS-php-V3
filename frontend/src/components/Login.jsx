@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import API_BASE_URL from '../config';
 import logo from '../assets/logo.png';
 import SubscriptionInvoice from './SubscriptionInvoice';
+import BackgroundAnimation from './BackgroundAnimation';
 
 export default function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
@@ -43,6 +44,14 @@ export default function Login({ onLoginSuccess }) {
   const [showInvoice, setShowInvoice] = useState(false);
   const [invoiceData, setInvoiceData] = useState(null);
 
+  // Live Chat states
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatUserName, setChatUserName] = useState('');
+  const [chatSessionId, setChatSessionId] = useState('');
+  const chatMessagesEndRef = useRef(null);
+
   // Fetch active packages and manual payment instructions on mount
   useEffect(() => {
     setError('');
@@ -66,7 +75,72 @@ export default function Login({ onLoginSuccess }) {
         if (data) setPaymentMethods(data);
       })
       .catch(err => console.error('Payment methods fetch error:', err));
+
+    // Initialize Chat Session ID
+    let sid = localStorage.getItem('chatSessionId');
+    if (!sid) {
+      sid = 'TKT-' + Math.floor(100000 + Math.random() * 900000);
+      localStorage.setItem('chatSessionId', sid);
+    }
+    setChatSessionId(sid);
+
+    const savedName = localStorage.getItem('chatUserName');
+    if (savedName) setChatUserName(savedName);
   }, []);
+
+  // Poll for new messages when chat is open
+  useEffect(() => {
+    let interval;
+    if (chatOpen && chatSessionId) {
+      const fetchMessages = () => {
+        fetch(`${API_BASE_URL}/chat/${chatSessionId}`)
+          .then(res => res.json())
+          .then(data => {
+            if (Array.isArray(data)) {
+              setChatMessages(data);
+            }
+          })
+          .catch(err => console.error('Chat fetch error:', err));
+      };
+
+      fetchMessages(); // Initial fetch
+      interval = setInterval(fetchMessages, 3000); // Poll every 3 seconds
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [chatOpen, chatSessionId]);
+
+  // Scroll to bottom of chat
+  useEffect(() => {
+    if (chatMessagesEndRef.current) {
+      chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, chatOpen]);
+
+  const handleSendChatMessage = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !chatSessionId) return;
+
+    const messageToSend = chatInput;
+    setChatInput(''); // Optimistic clear
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat/${chatSessionId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: messageToSend, sender_name: chatUserName || 'Guest Visitor' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setChatMessages(prev => [...prev, data.message]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to send message:', err);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -181,6 +255,7 @@ export default function Login({ onLoginSuccess }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 relative overflow-hidden py-12 px-4">
+      <BackgroundAnimation />
       {/* Animated background blobs */}
       <div className="absolute top-[-10%] left-[-5%] w-96 h-96 bg-slate-600/20 rounded-full blur-3xl animate-pulse" />
       <div className="absolute bottom-[-10%] right-[-5%] w-96 h-96 bg-violet-600/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
@@ -191,8 +266,8 @@ export default function Login({ onLoginSuccess }) {
 
         {/* Brand Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-900 border border-slate-700/50 shadow-2xl shadow-indigo-600/40 mb-4 overflow-hidden">
-            <img src={logo} alt="Codexaa-POS Logo" className="w-full h-full object-contain p-2" />
+          <div className="inline-flex items-center justify-center h-24 px-6 rounded-2xl bg-slate-900/80 border border-slate-700/50 shadow-2xl shadow-indigo-600/40 mb-4 overflow-hidden backdrop-blur-xl">
+            <img src={logo} alt="Codexaa-POS Logo" className="h-16 w-auto rounded-full object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Codexaa-POS</h1>
           <p className="text-slate-400 mt-1 text-sm">Professional Web-Based Multi-Tenant POS Platform</p>
@@ -292,7 +367,7 @@ export default function Login({ onLoginSuccess }) {
                     id="login-submit-btn"
                     type="submit"
                     disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/50 disabled:cursor-not-allowed text-white font-semibold rounded-xl py-2.5 text-xs transition-all duration-200 shadow-lg shadow-indigo-600/30 hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:translate-y-0"
+                    className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-600/50 disabled:cursor-not-allowed text-white font-semibold rounded-xl py-2.5 text-xs transition-all duration-200 shadow-lg shadow-emerald-600/30 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:translate-y-0"
                   >
                     {loading ? (
                       <>
@@ -321,9 +396,9 @@ export default function Login({ onLoginSuccess }) {
                   <button
                     type="button"
                     onClick={() => { setEmail('superadmin@mkpos.com'); setPassword('123456789'); }}
-                    className="flex items-center gap-2.5 w-full text-left bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl px-3 py-2 transition-colors group"
+                    className="flex items-center gap-2.5 w-full text-left bg-gray-500/10 hover:bg-gray-500/20 border border-gray-500/20 rounded-xl px-3 py-2 transition-colors group"
                   >
-                    <span className="text-[8px] font-bold bg-rose-500/25 text-rose-400 px-1.5 py-0.5 rounded-full shrink-0">SUPER ADMIN</span>
+                    <span className="text-[8px] font-bold bg-gray-500/25 text-gray-400 px-1.5 py-0.5 rounded-full shrink-0">SUPER ADMIN</span>
                     <span className="text-[10px] text-slate-400 group-hover:text-slate-300 transition-colors truncate">superadmin@mkpos.com</span>
                   </button>
                   <button
@@ -331,7 +406,7 @@ export default function Login({ onLoginSuccess }) {
                     onClick={() => { setEmail('new@gmail.com'); setPassword('123456'); }}
                     className="flex items-center gap-2.5 w-full text-left bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-xl px-3 py-2 transition-colors group"
                   >
-                    <span className="text-[8px] font-bold bg-indigo-500/25 text-indigo-400 px-1.5 py-0.5 rounded-full shrink-0">SHOP ADMIN</span>
+                    <span className="text-[8px] font-bold bg-gray-500/25 text-gray-400 px-1.5 py-0.5 rounded-full shrink-0">SHOP ADMIN</span>
                     <span className="text-[10px] text-slate-400 group-hover:text-slate-300 transition-colors truncate">new@gmail.com · 123456</span>
                   </button>
                   <button
@@ -339,7 +414,7 @@ export default function Login({ onLoginSuccess }) {
                     onClick={() => { setEmail('staff1@boutique.com'); setPassword('staff123'); }}
                     className="flex items-center gap-2.5 w-full text-left bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-xl px-3 py-2 transition-colors group"
                   >
-                    <span className="text-[8px] font-bold bg-amber-500/25 text-amber-400 px-1.5 py-0.5 rounded-full shrink-0">SHOP STAFF</span>
+                    <span className="text-[8px] font-bold bg-gray-500/25 text-gray-400 px-1.5 py-0.5 rounded-full shrink-0">SHOP STAFF</span>
                     <span className="text-[10px] text-slate-400 group-hover:text-slate-300 transition-colors truncate">staff1@boutique.com</span>
                   </button>
                 </div>
@@ -402,7 +477,7 @@ export default function Login({ onLoginSuccess }) {
                             payment_proof: null
                           }));
                         }}
-                        className="w-full mt-6 bg-indigo-650 hover:bg-indigo-600 hover:shadow-indigo-500/20 text-white font-semibold py-2 px-3 rounded-xl text-xs transition-all shadow-md active:translate-y-0.5"
+                        className="w-full mt-6 bg-emerald-600 hover:bg-emerald-500 hover:shadow-emerald-500/20 text-white font-semibold py-2 px-3 rounded-xl text-xs transition-all shadow-md active:translate-y-0.5"
                       >
                         Subscribe to {pkg.name.split(' ')[0]}
                       </button>
@@ -603,7 +678,7 @@ export default function Login({ onLoginSuccess }) {
               <button
                 type="submit"
                 disabled={processingPayment}
-                className="w-full flex items-center justify-center gap-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-600/50 disabled:cursor-not-allowed text-white font-semibold rounded-xl py-3 text-xs transition-all shadow-lg shadow-gray-600/20 active:translate-y-0.5"
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-600/50 disabled:cursor-not-allowed text-white font-semibold rounded-xl py-3 text-xs transition-all shadow-lg shadow-emerald-600/20 active:translate-y-0.5"
               >
                 {processingPayment ? (
                   <>
@@ -723,6 +798,147 @@ export default function Login({ onLoginSuccess }) {
         }}
         invoice={invoiceData}
       />
+
+      {/* Live Chat Widget */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+        {chatOpen && (
+          <div className="bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl mb-4 w-80 sm:w-96 overflow-hidden flex flex-col h-[450px] animate-fadeIn">
+            {/* Chat Header */}
+            <div className="bg-emerald-600 px-4 py-3 flex justify-between items-center text-white">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                <h3 className="font-bold text-sm">Codexaa-POS (Live Support)</h3>
+              </div>
+              <div className="flex items-center gap-3">
+                {chatUserName && (
+                  <button
+                    onClick={() => {
+                      setChatUserName('');
+                      localStorage.removeItem('chatUserName');
+                    }}
+                    className="text-[10px] bg-emerald-700 hover:bg-emerald-800 px-2 py-1 rounded border border-emerald-500 transition-colors"
+                    title="Change Name"
+                  >
+                    Change Name
+                  </button>
+                )}
+                <button onClick={() => setChatOpen(false)} className="text-white/70 hover:text-white transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Chat Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-900">
+              {chatMessages.length === 0 ? (
+                <div className="text-center text-slate-500 text-xs mt-10">
+                  <p>Welcome! Do you have any questions before starting your subscription?</p>
+                </div>
+              ) : (
+                chatMessages.map((msg, idx) => {
+                  const isAdmin = msg.sender_type === 'super_admin';
+                  return (
+                    <div key={idx} className={`flex flex-col ${isAdmin ? 'items-start' : 'items-end'}`}>
+                      <span className="text-[9px] text-slate-500 mb-0.5 ml-1 mr-1">{msg.sender_name || (isAdmin ? 'Codexaa' : 'You')}</span>
+                      <div className={`px-3 py-2 rounded-2xl max-w-[85%] text-xs shadow-sm ${isAdmin
+                        ? 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700'
+                        : 'bg-emerald-600 text-white rounded-tr-none'
+                        }`}>
+                        {msg.message}
+                      </div>
+                      {msg.created_at && (
+                        <span className="text-[8px] text-slate-500 mt-1 mx-1">
+                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+              <div ref={chatMessagesEndRef} />
+            </div>
+
+            {/* Chat Input */}
+            {!chatUserName ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const nameInput = e.target.elements.nameInput.value.trim();
+                  if (nameInput) {
+                    setChatUserName(nameInput);
+                    localStorage.setItem('chatUserName', nameInput);
+                  }
+                }}
+                className="bg-slate-800 border-t border-slate-700 p-3 flex flex-col gap-2"
+              >
+                <label className="text-[10px] text-slate-400 uppercase tracking-wider font-bold px-1">Enter your name to start</label>
+                <div className="flex gap-2">
+                  <input
+                    name="nameInput"
+                    type="text"
+                    placeholder="Your Name..."
+                    className="flex-1 bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                  <button
+                    type="submit"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 rounded-xl transition-colors shrink-0 text-xs font-bold"
+                  >
+                    Start
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleSendChatMessage} className="bg-slate-800 border-t border-slate-700 p-3 flex gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  placeholder="Type a message..."
+                  className="flex-1 bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim()}
+                  className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 text-white p-2 rounded-xl transition-colors shrink-0"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
+        {/* Chat Toggle Button */}
+        <div className="flex flex-col items-end">
+          {!chatOpen && (
+            <div
+              className="bg-emerald-600 text-white text-xs font-semibold tracking-wide rounded-2xl rounded-br-sm shadow-xl mb-3 shadow-emerald-900/50 border border-emerald-500 cursor-pointer overflow-hidden w-52 h-9 relative flex items-center"
+              onClick={() => setChatOpen(true)}
+            >
+              <span className="animate-marquee absolute w-full text-center">Any question? Chat with Codexaa-POS! </span>
+            </div>
+          )}
+          <button
+            onClick={() => setChatOpen(!chatOpen)}
+            className="w-14 h-14 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-2xl flex items-center justify-center transition-transform hover:scale-110 active:scale-95 border-2 border-emerald-400/30"
+          >
+            {chatOpen ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
+
     </div>
   );
 }
